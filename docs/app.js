@@ -20,16 +20,20 @@ const num = (v, d = 2) => v == null || isNaN(v) ? '—' : Number(v).toFixed(d).r
 
 /* ---------- Mapa ---------- */
 const mapa = L.map('mapa', { zoomControl: false, preferCanvas: true, minZoom: 11, maxZoom: 17,
+  rotate: true, bearing: 0, touchRotate: false, shiftKeyRotate: false, rotateControl: false,
   maxBounds: [[-34.72, -58.66], [-34.08, -58.06]], maxBoundsViscosity: 0.8, attributionControl: true }).setView([-34.47, -58.47], 13);
 L.control.zoom({ position: 'bottomright' }).addTo(mapa);
+// Con mapa girable: capas de dibujo dentro del panel que gira; etiquetas en el que no gira (texto siempre derecho)
+const panelGira = mapa.getPane('rotatePane'), panelFijo = mapa.getPane('norotatePane');
+const nuevoPanel = (nombre, z, fijo) => { const p = mapa.createPane(nombre, (fijo ? panelFijo : panelGira) || undefined); p.style.zIndex = z; return p; };
 mapa.attributionControl.setPrefix('').addAttribution('Carta: SHN H‑118 · Boyas: UNEN · Ríos: © OpenStreetMap');
 const renderer = L.canvas({ padding: 0.3 });
-mapa.createPane('carta').style.zIndex = 200;
-mapa.createPane('grilla').style.zIndex = 300;
-mapa.createPane('ruta').style.zIndex = 390;
+nuevoPanel('carta', 200);
+nuevoPanel('grilla', 300);
+nuevoPanel('ruta', 390);
 // Cada capa con su propio lienzo: si no, la carta (opaca) tapa la grilla y la ruta
-const lienzoCarta = L.canvas({ pane: 'carta', padding: 0.3 }), lienzoGrilla = L.canvas({ pane: 'grilla', padding: 0.3 });
-mapa.createPane('etiquetas').style.zIndex = 420;
+const lienzoCarta = L.canvas({ pane: 'carta', padding: 0.8 }), lienzoGrilla = L.canvas({ pane: 'grilla', padding: 0.8 });
+nuevoPanel('etiquetas', 420, true);
 
 // Colores de carta (estándar de plotter). Día y noche: se eligen según el modo del teléfono.
 const PALETA = {
@@ -42,8 +46,8 @@ const col = k => PALETA[modo()][k];
 let capasCarta = [];
 const estiloZona = f => ({ stroke: f.properties.z === 'tierra' || f.properties.z === 'seca', color: col('borde'), weight: 0.6,
   fillColor: col(f.properties.z) || col('agua'), fillOpacity: 1 });
-mapa.createPane('tierra').style.zIndex = 260; // la tierra siempre arriba del degradé y del rayado
-const lienzoTierra = L.canvas({ pane: 'tierra', padding: 0.3 });
+nuevoPanel('tierra', 260); // la tierra siempre arriba del degradé y del rayado
+const lienzoTierra = L.canvas({ pane: 'tierra', padding: 0.8 });
 fetch('datos/carta.geojson').then(r => r.json()).then(gj => {
   const esTierra = f => f.properties.z === 'tierra' || f.properties.z === 'seca';
   capasCarta.push(L.geoJSON(gj, { pane: 'carta', renderer: lienzoCarta, interactive: false, style: estiloZona, filter: f => !esTierra(f) }).addTo(mapa));
@@ -234,7 +238,7 @@ function dibujarNoPasa() {
   gG.putImageData(imG, 0, 0); gM.putImageData(imM, 0, 0);
   const b = [[prof.s, prof.w], [prof.n, prof.e]];
   if (!capaGrad) {
-    mapa.createPane('gradiente').style.zIndex = 240; mapa.createPane('nopasa').style.zIndex = 250;
+    nuevoPanel('gradiente', 240); nuevoPanel('nopasa', 250);
     capaGrad = L.imageOverlay(cvG.toDataURL(), b, { pane: 'gradiente', interactive: false }).addTo(mapa);
     capaNoPasa = new CapaTrama(cvM.toDataURL(), b, { pane: 'nopasa', interactive: false }).addTo(mapa);
   } else { capaGrad.setUrl(cvG.toDataURL()); capaNoPasa.setUrl(cvM.toDataURL()); }
@@ -320,8 +324,9 @@ function dibujarPasoMitre() {
 
 /* ---------- GPS ---------- */
 let marcaBarco = null, precision = null, seguir = leer('seguir', false), watchId = null;
-const iconoBarco = rumboDeg => L.divIcon({ className: 'barco', iconSize: [30, 30], iconAnchor: [15, 15],
-  html: `<svg width="30" height="30" viewBox="0 0 30 30" style="transform:rotate(${rumboDeg || 0}deg)"><path d="M15 2l7 22-7-5-7 5z" fill="#c2188f" stroke="#fff" stroke-width="2"/></svg>` });
+const iconoBarco = rumboDeg => L.divIcon({ // en pantalla: rumbo real + giro del mapa
+  _r: 0, className: 'barco', iconSize: [30, 30], iconAnchor: [15, 15],
+  html: `<svg width="30" height="30" viewBox="0 0 30 30" style="transform:rotate(${((rumboDeg || 0) + (mapa.getBearing ? mapa.getBearing() : 0)) % 360}deg)"><path d="M15 2l7 22-7-5-7 5z" fill="#c2188f" stroke="#fff" stroke-width="2"/></svg>` });
 /* Línea de rumbo (COG) como en un plotter: largo = distancia que se recorre en N minutos a la velocidad actual */
 let lineaRumbo = null, finRumbo = null, ultFix = null, cogCalc = null, sogCalc = null;
 const minutosRumbo = () => parseInt(leer('minRumbo', 10), 10);
@@ -350,7 +355,10 @@ function actualizarPos(p) {
     else { lineaRumbo.setLatLngs([posGps, fin]).addTo(mapa); finRumbo.setLatLng(fin).addTo(mapa); }
   } else if (lineaRumbo) { lineaRumbo.remove(); finRumbo.remove(); }
   $('#posTxt').innerHTML = `${esc(fmtLat(la))}<br>${esc(fmtLon(lo))}`;
-  $('#posSub').textContent = (kn != null ? `SOG ${num(kn, 1)} kn` : 'SOG —') + (navegando ? ` · COG ${fmtRumbo(cog)}` : '') + ` · ± ${Math.round(accuracy)} m`;
+  $('#sog').textContent = kn != null ? num(kn, 1) : '—';
+  $('#cog').textContent = navegando ? fmtRumbo(cog) : '—';
+  $('#posSub').textContent = `± ${Math.round(accuracy)} m` + (navegando ? '' : ' · quieto: sin línea de rumbo');
+  if (orient === 'rumbo' && navegando && mapa.setBearing) { mapa.setBearing(360 - cog); marcaBarco.setIcon(iconoBarco(cog)); }
   if (seguir) mapa.panTo(posGps, { animate: true });
   const ais = $('#linkAis'); if (ais) ais.href = `https://www.marinetraffic.com/en/ais/home/centerx:${lo.toFixed(3)}/centery:${la.toFixed(3)}/zoom:14`;
 }
@@ -363,6 +371,20 @@ function iniciarGps(centrar) {
   else if (centrar) navigator.geolocation.getCurrentPosition(p => mapa.setView([p.coords.latitude, p.coords.longitude], 14), () => {}, { enableHighAccuracy: true });
 }
 $('#btnGps').onclick = () => iniciarGps(true);
+/* Orientación: Norte arriba (mapa fijo) / Rumbo arriba (el mapa gira para que tu rumbo apunte hacia arriba) */
+let orient = leer('orient', 'norte');
+const btnOrient = $('#btnOrient');
+function aplicarOrient() {
+  const r = orient === 'rumbo';
+  btnOrient.setAttribute('aria-pressed', r);
+  $('#orientIco').textContent = r ? '▲' : 'N';
+  $('#orientTxt').textContent = r ? 'rumbo' : 'norte';
+  if (!r && mapa.setBearing) mapa.setBearing(0);
+  if (r) { seguir = true; btnSeguir.setAttribute('aria-pressed', true); iniciarGps(true); }
+  if (marcaBarco) marcaBarco.setIcon(iconoBarco(cogCalc ?? 0));
+}
+btnOrient.onclick = () => { orient = orient === 'rumbo' ? 'norte' : 'rumbo'; guardar('orient', orient); aplicarOrient(); };
+
 const selRumbo = $('#minRumbo'); selRumbo.value = String(minutosRumbo()); selRumbo.onchange = () => guardar('minRumbo', parseInt(selRumbo.value, 10));
 const btnSeguir = $('#btnSeguir');
 btnSeguir.setAttribute('aria-pressed', seguir);
@@ -572,6 +594,23 @@ function pintarTablaViento(d) {
 }
 // Viento actual para las tarjetas de situación
 Promise.allSettled(['si', 'bsas', 'pnor'].map(k => datosViento(k).then(d => vientoActual(k, d)))).then(() => sit && pintarSituacion());
+
+/* Pantalla siempre encendida (Screen Wake Lock): se vuelve a pedir al volver a la app */
+let wake = null, quiereWake = leer('pantalla', false);
+const btnPant = $('#btnPantalla');
+async function pedirWake() {
+  if (!('wakeLock' in navigator)) { $('#pantTxt').textContent = 'no disp.'; return false; }
+  try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; pintarPant(); }); pintarPant(); return true; }
+  catch (e) { wake = null; pintarPant(); return false; }
+}
+function pintarPant() { const on = !!wake; btnPant.setAttribute('aria-pressed', on); $('#pantTxt').textContent = on ? 'siempre on' : 'pantalla'; }
+btnPant.onclick = async () => {
+  quiereWake = !quiereWake; guardar('pantalla', quiereWake);
+  if (quiereWake) await pedirWake(); else { try { await wake?.release(); } catch (e) {} wake = null; pintarPant(); }
+};
+document.addEventListener('visibilitychange', () => { if (quiereWake && document.visibilityState === 'visible' && !wake) pedirWake(); });
+if (quiereWake) pedirWake();
+aplicarOrient();
 
 // Restaurar la última pestaña (al final: todo lo que usa ya está definido)
 { const t = document.querySelector(`.tab[data-t="${leer('tab', 'sit')}"]`); if (t) t.click(); }

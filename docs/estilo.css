@@ -26,6 +26,14 @@ button{cursor:pointer}
 /* Displays de instrumento */
 .hud{position:fixed;z-index:500;background:var(--instr);color:var(--instr-ink);border-radius:10px;padding:8px 12px;box-shadow:0 4px 16px #0005;border:2px solid #1f5a7a}
 .hud-pos{left:max(12px,env(safe-area-inset-left));top:max(12px,env(safe-area-inset-top));min-width:220px}
+.hud-vel{display:flex;gap:14px;margin:2px 0 4px}
+.hud-vel span{display:flex;align-items:baseline;gap:4px}
+.hud-vel b{font:700 34px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.hud-vel small{font-size:13px;color:#9fc3d8}
+.btn-orient{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.btn-orient span{font:700 20px/1 "Barlow Condensed",sans-serif}
+.btn-orient small{font-size:10px;color:#cfe2ee;margin-top:1px}
+.btn-orient[aria-pressed=true]{background:#ff7a00;border-color:#fff}
 .hud-l{font-size:13px;color:#9fc3d8}
 .hud-v{font:600 22px/1.15 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
 .hud-s{font-size:13px;color:#cfe2ee;font-variant-numeric:tabular-nums}

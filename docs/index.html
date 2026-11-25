@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=18">
+<link rel="stylesheet" href="estilo.css?v=22">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -22,6 +22,7 @@
 <!-- Instrumentos sobre el mapa -->
 <div class="hud hud-pos" id="hudPos" aria-live="polite">
   <div class="hud-l">Posición</div>
+  <div class="hud-vel"><span><b id="sog">—</b><small>kn</small></span><span><b id="cog">—</b><small>rumbo</small></span></div>
   <div class="hud-v" id="posTxt">Sin GPS</div>
   <div class="hud-s" id="posSub">Tocá ◎ para ubicarte</div>
   <label class="hud-rumbo">Línea de rumbo
@@ -31,7 +32,9 @@
 
 <div class="botones">
   <button class="btn-r" id="btnGps" title="Mi posición (GPS)" aria-label="Mi posición">◎</button>
+  <button class="btn-r btn-orient" id="btnOrient" title="Norte arriba / Rumbo arriba" aria-label="Cambiar orientación del mapa"><span id="orientIco">N</span><small id="orientTxt">norte</small></button>
   <button class="btn-r" id="btnSeguir" title="Seguir el barco" aria-label="Seguir el barco" aria-pressed="false">⤴</button>
+  <button class="btn-r btn-orient" id="btnPantalla" title="Mantener la pantalla encendida" aria-label="Mantener la pantalla encendida" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg><small id="pantTxt">pantalla</small></button>
   <button class="btn-r" id="btnPanel" title="Situación del río" aria-label="Abrir panel">☰</button>
 </div>
 
@@ -124,6 +127,7 @@
 </aside>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="app.js?v=18"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
+<script src="app.js?v=22"></script>
 </body>
 </html>
