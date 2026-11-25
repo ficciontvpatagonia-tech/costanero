@@ -520,29 +520,30 @@ const SITUACIONES = [ // lo que importa: Pilote Norden, San Isidro, Puerto de Bu
   { id: 'BSAS', titulo: 'Puerto de Buenos Aires', viento: 'bsas' },
   { id: 'PNOR', titulo: 'Pilote Norden', viento: 'pnor' },
 ];
+// Tendencia con hora: "▲ crece hasta las 21:45" (estimación SHN: astronómica + efecto del viento; si no alcanza, pleamar/bajamar SHN)
+function tendencia(est, puertoPB) {
+  const u = est && ultimo(est.observada), prev = est && est.observada[est.observada.length - 2];
+  if (!u || !prev) return '';
+  const sube = u[1] > prev[1], e = estimacion(est);
+  let hasta = null;
+  if (e) { let ant = u[1]; for (const x of e.futuro) { if (sube ? x[1] < ant : x[1] > ant) { hasta = x[0]; break; } ant = x[1]; } }
+  // el máximo/mínimo está una hora antes de que cambie la serie horaria
+  if (hasta) hasta = new Date(new Date(hasta) - 3600e3).toISOString();
+  if (!hasta && puertoPB) {
+    const sig = (sit.radioavisos?.pleamar_bajamar?.[puertoPB] || []).find(x => x.estado === (sube ? 'pleamar' : 'bajamar'));
+    if (sig) return `<span class="tend ${sube ? 'sube' : 'baja'}">${sube ? '▲ crece' : '▼ baja'} hasta las ${esc(sig.hora)}</span>`;
+  }
+  return `<span class="tend ${sube ? 'sube' : 'baja'}">${sube ? '▲ crece' : '▼ baja'}${hasta ? ' hasta las ' + hora(hasta) : ''}</span>`;
+}
+const efectoViento = e => !e ? '' : e.dif >= 0.3 ? ` · sudestada +${num(e.dif)} m` : e.dif <= -0.3 ? ` · bajante por viento ${num(e.dif)} m` : '';
 function tarjeta(s) {
   const m = sit.mareografos || {}, pref = sit.prefectura || {};
-  let alt = '—', tend = '', det = '', chips = '';
-  if (s.id === 'SI') {
-    const p = pref['San Isidro'], sf = m.SFER, u = sf && ultimo(sf.observada), prev = sf && sf.observada[sf.observada.length - 2];
-    alt = u ? num(u[1]) + ' m' : '—';
-    if (u && prev) tend = u[1] > prev[1] ? '<span class="tend sube">▲ crece</span>' : u[1] < prev[1] ? '<span class="tend baja">▼ baja</span>' : '<span class="tend">= estable</span>';
-    det = `San Fernando ${u ? hora(u[0]) : ''}`;
-    if (p) { det += ` · Pref. ${num(p.altura)} m ${esc(p.estado)}`;
-      chips = p.altura >= p.evacuacion ? '<span class="chip evac">Evacuación</span>' : p.altura >= p.alerta ? '<span class="chip alerta">Alerta</span>' : ''; }
-    const e = sf && estimacion(sf); if (e) det += ` · viento ${e.dif >= 0 ? '+' : ''}${num(e.dif)} m`;
-  } else {
-    const est = m[s.id], u = est && ultimo(est.observada), prev = est && est.observada[est.observada.length - 2];
-    alt = u ? num(u[1]) + ' m' : '—';
-    if (u && prev) tend = u[1] > prev[1] ? '<span class="tend sube">▲ crece</span>' : u[1] < prev[1] ? '<span class="tend baja">▼ baja</span>' : '<span class="tend">= estable</span>';
-    const e = est && estimacion(est);
-    det = u ? hora(u[0]) : 'sin lectura';
-    if (e) det += ` · viento ${e.dif >= 0 ? '+' : ''}${num(e.dif)} m`;
-    if (s.id === 'BSAS') { const p = pref['Buenos Aires']; if (p) chips = p.altura >= p.evacuacion ? '<span class="chip evac">Evacuación</span>' : p.altura >= p.alerta ? '<span class="chip alerta">Alerta</span>' : ''; }
-  }
-  const v = vientoAhora[s.viento];
-  const vt = v ? `<div class="viento" aria-label="Viento">${flecha(v.dir)} ${Math.round(v.vel)}<small>/${Math.round(v.raf)} kn</small><div class="nota">${esc(cardinal(v.dir))}</div></div>` : '<div class="viento nota">viento…</div>';
-  return `<div class="est"><h3>${esc(s.titulo)} ${chips}</h3><div><div class="alt">${alt}</div>${tend}</div>${vt}<div class="det">${det}</div></div>`;
+  const cod = s.id === 'SI' ? 'SFER' : s.id, est = m[cod], u = est && ultimo(est.observada);
+  const pb = s.id === 'SI' ? 'San Fernando' : s.id === 'BSAS' ? 'Buenos Aires' : null;
+  const p = s.id === 'SI' ? pref['San Isidro'] : s.id === 'BSAS' ? pref['Buenos Aires'] : null;
+  const chips = p ? (p.altura >= p.evacuacion ? '<span class="chip evac">Evacuación</span>' : p.altura >= p.alerta ? '<span class="chip alerta">Alerta</span>' : '') : '';
+  const det = (u ? (s.id === 'SI' ? 'San Fernando ' : '') + hora(u[0]) : 'sin lectura') + efectoViento(est && estimacion(est));
+  return `<div class="est"><h3>${esc(s.titulo)} ${chips}</h3><div><div class="alt">${u ? num(u[1]) + ' m' : '—'}</div>${tendencia(est, pb)}</div><div class="det">${det}</div></div>`;
 }
 function pintarSituacion() {
   if (!sit) return;
