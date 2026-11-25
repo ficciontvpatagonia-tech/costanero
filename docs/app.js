@@ -480,9 +480,9 @@ function curva(est, e) {
 }
 
 const SITUACIONES = [ // lo que importa: Pilote Norden, San Isidro, Puerto de Buenos Aires
-  { id: 'PNOR', titulo: 'Pilote Norden', viento: 'pnor' },
   { id: 'SI', titulo: 'San Isidro', viento: 'si' },
   { id: 'BSAS', titulo: 'Puerto de Buenos Aires', viento: 'bsas' },
+  { id: 'PNOR', titulo: 'Pilote Norden', viento: 'pnor' },
 ];
 function tarjeta(s) {
   const m = sit.mareografos || {}, pref = sit.prefectura || {};
