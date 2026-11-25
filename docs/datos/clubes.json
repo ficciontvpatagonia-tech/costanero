@@ -86,6 +86,13 @@
 "tipo": "amarra"
 },
 {
+"n": "Club Náutico Sarandí",
+"lat": -34.45665,
+"lon": -58.50763,
+"tipo": "club",
+"fuente": "PredictWind (listado de marinas); agregado a pedido"
+},
+{
 "n": "Club Náutico Buchardo",
 "lat": -34.45713,
 "lon": -58.50694,
