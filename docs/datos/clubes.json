@@ -1,0 +1,149 @@
+{
+"fuente": "© colaboradores de OpenStreetMap (ODbL)",
+"clubes": [
+{
+"n": "Puerto Carpincho",
+"lat": -34.38697,
+"lon": -58.56136,
+"tipo": "amarra"
+},
+{
+"n": "Amarra Pública Rodolfo Walsh",
+"lat": -34.4089,
+"lon": -58.59212,
+"tipo": "amarra"
+},
+{
+"n": "Club de Regatas Hispano Argentino",
+"lat": -34.4153,
+"lon": -58.58017,
+"tipo": "club"
+},
+{
+"n": "Marina Santa Monica",
+"lat": -34.41542,
+"lon": -58.50646,
+"tipo": "amarra"
+},
+{
+"n": "Club de Regatas América",
+"lat": -34.41792,
+"lon": -58.5795,
+"tipo": "club"
+},
+{
+"n": "Club Náutico Cinave",
+"lat": -34.41841,
+"lon": -58.56148,
+"tipo": "club"
+},
+{
+"n": "Club Náutico Bahía Azul",
+"lat": -34.42097,
+"lon": -58.55361,
+"tipo": "club"
+},
+{
+"n": "Amarra pública Hugo del Carril",
+"lat": -34.42471,
+"lon": -58.58407,
+"tipo": "amarra"
+},
+{
+"n": "Club Náutico Hacoaj",
+"lat": -34.42938,
+"lon": -58.58607,
+"tipo": "club"
+},
+{
+"n": "Amarras del Norte",
+"lat": -34.43738,
+"lon": -58.53937,
+"tipo": "amarra"
+},
+{
+"n": "Marina Buen Puerto",
+"lat": -34.44028,
+"lon": -58.53887,
+"tipo": "amarra"
+},
+{
+"n": "Yacht Club Argentino (San Fernando)",
+"lat": -34.44072,
+"lon": -58.55002,
+"tipo": "club"
+},
+{
+"n": "Marina Puerto Chico",
+"lat": -34.44101,
+"lon": -58.53568,
+"tipo": "amarra"
+},
+{
+"n": "Marina Canestrari",
+"lat": -34.4425,
+"lon": -58.53431,
+"tipo": "amarra"
+},
+{
+"n": "Club Náutico Buchardo",
+"lat": -34.45713,
+"lon": -58.50694,
+"tipo": "club"
+},
+{
+"n": "Club Náutico Las Barrancas",
+"lat": -34.46776,
+"lon": -58.49633,
+"tipo": "club"
+},
+{
+"n": "Yacht Club Olivos",
+"lat": -34.50481,
+"lon": -58.47678,
+"tipo": "club"
+},
+{
+"n": "Círculo de Pilotos de Yate (CPY)",
+"lat": -34.50591,
+"lon": -58.4767,
+"tipo": "club"
+},
+{
+"n": "Marina del Centro Naval",
+"lat": -34.53693,
+"lon": -58.45341,
+"tipo": "amarra"
+},
+{
+"n": "Marina del Club Universitario de Buenos Aires",
+"lat": -34.53823,
+"lon": -58.45133,
+"tipo": "amarra"
+},
+{
+"n": "Marina del Centro de Graduados del Liceo Naval",
+"lat": -34.5387,
+"lon": -58.45365,
+"tipo": "amarra"
+},
+{
+"n": "Puerto Norte",
+"lat": -34.55047,
+"lon": -58.42542,
+"tipo": "amarra"
+},
+{
+"n": "Yacht Club Argentino",
+"lat": -34.59605,
+"lon": -58.36153,
+"tipo": "club"
+},
+{
+"n": "Yacht Club Puerto Madero",
+"lat": -34.60194,
+"lon": -58.36529,
+"tipo": "amarra"
+}
+]
+}

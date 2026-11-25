@@ -101,6 +101,7 @@ a{color:light-dark(#0a5f99,#7cc6ec)}
 .et-lugar{color:light-dark(#3d3a1c,#f4ecbd);font:700 14px/1 "Barlow Condensed",sans-serif;white-space:nowrap;text-shadow:0 0 3px var(--tierra),0 0 3px var(--tierra);pointer-events:none}
 .et-grande{font:italic 600 22px/1 Barlow,sans-serif;color:light-dark(#0a4a75,#cfe9f7);letter-spacing:.05em;pointer-events:none;white-space:nowrap}
 .et-boya{font:600 11px/1 Barlow,sans-serif;color:light-dark(#222,#eee);white-space:nowrap;text-shadow:0 0 2px var(--agua),0 0 2px var(--agua);pointer-events:none}
+.et-club{font:600 12px/1 Barlow,sans-serif;color:light-dark(#0b2a3c,#fff);white-space:nowrap;text-shadow:0 0 3px var(--tierra),0 0 3px var(--tierra),0 0 2px var(--tierra);pointer-events:none}
 .grat{display:inline-block;font:600 13px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums;color:#fff;background:#0b2a3cd9;padding:3px 5px;border-radius:4px;white-space:nowrap;pointer-events:none}
 .barco{filter:drop-shadow(0 2px 3px #0008)}
 .leaflet-popup-content{font:15px/1.4 Barlow,sans-serif;margin:10px 12px}

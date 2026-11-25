@@ -150,6 +150,21 @@ fetch('datos/boyas.json').then(r => r.json()).then(d => {
 });
 mapa.on('zoomend', etiquetasSegunZoom);
 
+/* ---------- Clubes y amarras (OpenStreetMap) ---------- */
+const capaClubes = L.layerGroup(), etClubes = L.layerGroup();
+const iconoClub = L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -10],
+  html: '<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#0b2a3c" stroke="#fff" stroke-width="1.5"/><path d="M11 5v11M7.5 8h7M6 12.5c1 2.6 3 3.6 5 3.6s4-1 5-3.6" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="5" r="1.4" fill="#fff"/></svg>' });
+fetch('datos/clubes.json').then(r => r.json()).then(d => {
+  for (const c of d.clubes) {
+    const p = L.latLng(c.lat, c.lon);
+    L.marker(p, { icon: iconoClub, title: c.n }).bindPopup(() => `<h3>${esc(c.n)}</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(c.lat))}<br>${esc(fmtLon(c.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(distM(posGps, p))}</p>` : ''}<p class="nota">Ubicación aproximada del club o amarra (OpenStreetMap), no de su canal de acceso.</p>`).addTo(capaClubes);
+    L.marker(p, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-club" style="transform:translate(14px,-50%)">${esc(c.n)}</div>`, iconSize: [0, 0] }) }).addTo(etClubes);
+  }
+  clubesSegunZoom();
+}).catch(() => {});
+function clubesSegunZoom() { const z = mapa.getZoom(); z >= 12 ? capaClubes.addTo(mapa) : capaClubes.remove(); z >= 14 ? etClubes.addTo(mapa) : etClubes.remove(); }
+mapa.on('zoomend', clubesSegunZoom);
+
 /* ---------- Ruta segura del Canal Costanero: centro de cada par de boyas UNEN (se recalcula sola si UNEN mueve una boya) ---------- */
 const PARES_COSTANERO = [
   ['Km 24', ['KM 24 (Roja)', 'KM 24 (Verde)']], ['Km 23', ['KM 23', 'KM 23 VERDE']], ['Km 22', ['KM 22 ROJA', 'KM 22 VERDE']],
