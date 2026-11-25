@@ -147,7 +147,7 @@ function popupBoya(b, tp) {
     + (b.status && b.status !== 'OK' ? `<p><strong>${esc(b.status)}</strong></p>` : '') + desde;
 }
 let boyasFecha = '';
-fetch('datos/boyas.json').then(r => r.json()).then(d => {
+fetch('datos/boyas.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
   boyasFecha = d.archivo_modificado ? new Date(d.archivo_modificado).toLocaleDateString('es-AR') : (d.descargado || '');
   boyas = d.boyas.filter(b => typeof b.lat === 'number' && typeof b.lon === 'number');
   for (const b of boyas) {
@@ -259,7 +259,7 @@ fetch('datos/profundidad.json').then(r => r.json()).then(d => {
 }).catch(() => {});
 
 /* ---------- Veriles oficiales de los canales troncales (Emilio Mitre, Paraná de las Palmas…) ---------- */
-fetch('datos/veriles.json').then(r => r.json()).then(v => {
+fetch('datos/veriles.json', { cache: 'no-cache' }).then(r => r.json()).then(v => {
   const capa = L.layerGroup().addTo(mapa);
   const info = '<h3>Canal troncal</h3><p>Canal de buques: cruzar en perpendicular.</p>';
   for (const t of v.rojo) L.polyline(t.map(p => [p[1], p[0]]), { pane: 'ruta', color: '#d7262e', weight: 2.5, dashArray: '8 5', opacity: 0.9 }).bindPopup(info).addTo(capa);
@@ -270,7 +270,7 @@ fetch('datos/veriles.json').then(r => r.json()).then(v => {
 const capaClubes = L.layerGroup(), etClubes = L.layerGroup();
 const iconoClub = L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -10],
   html: '<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#0b2a3c" stroke="#fff" stroke-width="1.5"/><path d="M11 5v11M7.5 8h7M6 12.5c1 2.6 3 3.6 5 3.6s4-1 5-3.6" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="5" r="1.4" fill="#fff"/></svg>' });
-fetch('datos/clubes.json').then(r => r.json()).then(d => {
+fetch('datos/clubes.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
   for (const c of d.clubes) {
     const p = L.latLng(c.lat, c.lon);
     ficha(L.marker(p, { icon: iconoClub, title: c.n }), c.lat, c.lon, c.n, '').addTo(capaClubes);
@@ -282,7 +282,7 @@ function clubesSegunZoom() { const z = mapa.getZoom(); z >= 12 ? capaClubes.addT
 mapa.on('zoomend', clubesSegunZoom);
 
 /* ---------- Referencias propias (no están en UNEN): El Marciano ---------- */
-fetch('datos/referencias.json').then(r => r.json()).then(d => {
+fetch('datos/referencias.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
   for (const r of d.referencias) {
     const p = L.latLng(r.lat, r.lon);
     ficha(L.marker(p, { icon: iconoBoya({ k: r.tipo || 'peligro' }), title: r.n }), r.lat, r.lon, r.n, r.nota).addTo(capaBoyas);
@@ -320,7 +320,7 @@ function etiquetaPaso(latlng, texto) {
   L.marker(latlng, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya et-destacada" style="transform:translate(10px,-50%);border-left-color:#ff7a00">${esc(texto)}</div>`, iconSize: [0, 0] }) }).addTo(capaRuta);
 }
 function dibujarPasoMitre() {
-  fetch('datos/pasos_mitre.json').then(r => r.json()).then(P => {
+  fetch('datos/pasos_mitre.json', { cache: 'no-cache' }).then(r => r.json()).then(P => {
     const B = Object.fromEntries(boyas.map(b => [b.name, b])), a = B['UNEN A'], b = B['UNEN B'];
     const nota = '<p>Cruzar rápido y en perpendicular.</p>';
     if (a && b) {
@@ -364,7 +364,7 @@ function actualizarPos(p) {
   const cog = heading != null && !isNaN(heading) && (sog ?? 0) > 0.25 ? heading : cogCalc;
   const kn = sog != null ? sog * 1.94384 : null;
   const navegando = cog != null && kn != null && kn >= 0.5;
-  if (!marcaBarco) { marcaBarco = L.marker(posGps, { icon: iconoBarco(navegando ? cog : 0), zIndexOffset: 1000, keyboard: false }).addTo(mapa); precision = L.circle(posGps, { radius: accuracy, color: '#c2188f', weight: 1, fillOpacity: 0.08, interactive: false }).addTo(mapa); }
+  if (!marcaBarco) { marcaBarco = L.marker(posGps, { icon: iconoBarco(navegando ? cog : 0), zIndexOffset: 1000, keyboard: false }).on('click', e => { L.DomEvent.stopPropagation(e); $('#hudDet').hidden = !$('#hudDet').hidden; }).addTo(mapa); precision = L.circle(posGps, { radius: accuracy, color: '#c2188f', weight: 1, fillOpacity: 0.08, interactive: false }).addTo(mapa); }
   else { marcaBarco.setLatLng(posGps).setIcon(iconoBarco(navegando ? cog : 0)); precision.setLatLng(posGps).setRadius(accuracy); }
   if (navegando) {
     const largo = Math.max(sog * 60 * minutosRumbo(), 150), fin = destino(posGps, cog, largo);
@@ -389,6 +389,7 @@ function iniciarGps(centrar) {
   else if (centrar) navigator.geolocation.getCurrentPosition(p => mapa.setView([p.coords.latitude, p.coords.longitude], 14), () => {}, { enableHighAccuracy: true });
 }
 $('#btnGps').onclick = () => iniciarGps(true);
+$('#cerrarDet').onclick = () => { $('#hudDet').hidden = true; };
 /* Orientación: Norte arriba (mapa fijo) / Rumbo arriba (el mapa gira para que tu rumbo apunte hacia arriba) */
 let orient = leer('orient', 'norte');
 const btnOrient = $('#btnOrient');

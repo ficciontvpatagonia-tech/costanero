@@ -7,6 +7,30 @@
    "tipo": "peligro",
    "nota": "Restos sumergidos del antiguo mareógrafo. Peligro aislado.",
    "fuente": "Aportado por el usuario (25/11/2026)"
+  },
+  {
+   "n": "Toma AySA N° 3",
+   "lat": -34.543333,
+   "lon": -58.418283,
+   "tipo": "especial",
+   "nota": "Toma de agua AySA. Fl(2) 10 s. Zona restringida alrededor.",
+   "fuente": "Marto (Navionics) / SHN H-118"
+  },
+  {
+   "n": "Toma AySA N° 2",
+   "lat": -34.54662,
+   "lon": -58.42165,
+   "tipo": "especial",
+   "nota": "Toma de agua AySA. Zona restringida alrededor.",
+   "fuente": "SHN H-118"
+  },
+  {
+   "n": "Toma AySA",
+   "lat": -34.54195,
+   "lon": -58.43283,
+   "tipo": "especial",
+   "nota": "Toma de agua AySA. Zona restringida alrededor.",
+   "fuente": "SHN H-118"
   }
  ]
 }

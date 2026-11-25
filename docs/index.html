@@ -16,15 +16,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=49">
+<link rel="stylesheet" href="estilo.css?v=52">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
 
 <!-- Instrumentos sobre el mapa -->
-<div class="hud hud-pos" id="hudPos" aria-live="polite">
-  <div class="hud-l">Posición</div>
-  <div class="hud-vel"><span><b id="sog">—</b><small>kn</small></span><span><b id="cog">—</b><small>rumbo</small></span></div>
+<div class="barra" id="barra" aria-live="polite">
+  <div class="b-item"><b id="cog">—</b><small>rumbo</small></div>
+  <div class="b-item"><b id="sog">—</b><small>kn</small></div>
+</div>
+
+<div class="hud hud-det" id="hudDet" hidden>
+  <button class="cerrar" id="cerrarDet" aria-label="Cerrar">×</button>
   <div class="hud-v" id="posTxt">Sin GPS</div>
   <div class="hud-s" id="posSub">Tocá ◎ para ubicarte</div>
   <label class="hud-rumbo">Línea de rumbo
@@ -131,6 +135,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=49"></script>
+<script src="app.js?v=52"></script>
 </body>
 </html>
