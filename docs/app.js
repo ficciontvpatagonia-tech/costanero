@@ -274,6 +274,15 @@ fetch('datos/clubes.json').then(r => r.json()).then(d => {
 function clubesSegunZoom() { const z = mapa.getZoom(); z >= 12 ? capaClubes.addTo(mapa) : capaClubes.remove(); z >= 14 ? etClubes.addTo(mapa) : etClubes.remove(); }
 mapa.on('zoomend', clubesSegunZoom);
 
+/* ---------- Referencias propias (no están en UNEN): El Marciano ---------- */
+fetch('datos/referencias.json').then(r => r.json()).then(d => {
+  for (const r of d.referencias) {
+    const p = L.latLng(r.lat, r.lon);
+    L.marker(p, { icon: iconoBoya({ k: r.tipo || 'peligro' }), title: r.n }).bindPopup(() => `<h3>${esc(r.n)}</h3><p>${esc(r.nota)}</p><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(r.lat))}<br>${esc(fmtLon(r.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(distM(posGps, p))}</p>` : ''}<p class="nota">${esc(r.fuente)}</p>`).addTo(capaBoyas);
+    L.marker(p, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya et-destacada" style="transform:translate(12px,-22px)">${esc(r.n)}</div>`, iconSize: [0, 0] }) }).addTo(etDestacadas);
+  }
+}).catch(() => {});
+
 /* ---------- Ruta segura del Canal Costanero: centro de cada par de boyas UNEN (se recalcula sola si UNEN mueve una boya) ---------- */
 const PARES_COSTANERO = [
   ['Km 24', ['KM 24 (Roja)', 'KM 24 (Verde)']], ['Km 23', ['KM 23', 'KM 23 VERDE']], ['Km 22', ['KM 22 ROJA', 'KM 22 VERDE']],
