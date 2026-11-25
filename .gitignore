@@ -1,0 +1,5 @@
+.venv/
+_trabajo/
+datos/carta/
+__pycache__/
+.DS_Store

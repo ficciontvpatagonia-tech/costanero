@@ -1,0 +1,119 @@
+/*
+VOICE: instrumento de a bordo — claro, sobrio, legible al sol y de noche.
+IDEA: la carta náutica de plotter (estándar que todo navegante reconoce): tierra amarilla, se seca verde, somero azul, hondo blanco.
+PICTURE: el mapa ocupa todo; los datos flotan como displays de instrumento.
+COLOUR and TYPE: azul noche #0b2a3c para instrumentos, colores de carta estándar, rojo/verde IALA; Barlow + Barlow Condensed (cifras).
+LAYOUT: mapa a pantalla completa; panel a la derecha en tablet/PC, hoja inferior en teléfono.
+*/
+:root{
+  color-scheme:light dark;
+  --tierra:light-dark(#f2df6b,#6b6232);--seca:light-dark(#a8d08d,#3f5a33);--agua:light-dark(#7cc6ec,#1d4f6e);--honda:light-dark(#eef7fc,#2f6b8d);
+  --ink:light-dark(#0d2433,#e8f1f6);--sub:light-dark(#4a6272,#9fb6c4);--bg:light-dark(#ffffff,#0f2230);--bg2:light-dark(#f2f6f9,#16303f);
+  --instr:#0b2a3c;--instr-ink:#f4f9fc;--linea:light-dark(#d5e0e7,#28475a);
+  --rojo:#d7262e;--verde:#14953d;--ambar:#e39b0b;--mag:#c2188f;
+}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%;margin:0}
+body{font:16px/1.45 Barlow,system-ui,sans-serif;color:var(--ink);background:var(--agua);overflow:hidden}
+#mapa{position:fixed;inset:0;background:var(--agua)}
+.leaflet-container{background:var(--agua);font:inherit}
+.leaflet-control-attribution{font-size:11px}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--mag);outline-offset:2px}
+
+/* Displays de instrumento */
+.hud{position:fixed;z-index:500;background:var(--instr);color:var(--instr-ink);border-radius:10px;padding:8px 12px;box-shadow:0 4px 16px #0005;border:2px solid #1f5a7a}
+.hud-pos{left:max(12px,env(safe-area-inset-left));top:max(12px,env(safe-area-inset-top));min-width:220px}
+.hud-l{font-size:13px;color:#9fc3d8}
+.hud-v{font:600 22px/1.15 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hud-s{font-size:13px;color:#cfe2ee;font-variant-numeric:tabular-nums}
+.hud-rumbo{display:flex;align-items:center;gap:6px;font-size:13px;color:#9fc3d8;margin-top:4px}
+.hud-rumbo select{background:#123a52;color:#fff;border:1px solid #2c6a8c;border-radius:6px;padding:4px 6px;font-size:14px;min-height:32px}
+.hud-toque{left:max(12px,env(safe-area-inset-left));top:104px;min-width:220px;padding-right:40px}
+.cerrar{position:absolute;right:6px;top:6px;width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1}
+.botones{position:fixed;z-index:500;right:max(12px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));display:flex;flex-direction:column;gap:10px}
+.btn-r{width:52px;height:52px;border-radius:50%;border:2px solid #1f5a7a;background:var(--instr);color:var(--instr-ink);font-size:24px;box-shadow:0 4px 14px #0005}
+.btn-r[aria-pressed=true]{background:var(--mag);border-color:#fff}
+
+/* Panel */
+.panel{position:fixed;z-index:600;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--bg);box-shadow:-6px 0 24px #0004;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .25s}
+.panel.abierto{transform:none}
+.p-cab{display:flex;justify-content:space-between;align-items:flex-start;padding:16px 16px 8px;background:var(--instr);color:var(--instr-ink);position:relative;padding-top:max(16px,env(safe-area-inset-top))}
+.p-cab h1{margin:0;font:700 30px/1.05 "Barlow Condensed",sans-serif}
+.p-sub{margin:2px 0 0;font-size:13px;color:#b8d3e3}
+.tabs{display:flex;overflow-x:auto;background:var(--instr);padding:0 8px}
+.tab{flex:none;border:0;background:transparent;color:#b8d3e3;padding:12px 12px;min-height:44px;font-weight:600;border-bottom:3px solid transparent}
+.tab.on{color:#fff;border-bottom-color:var(--ambar)}
+.vista{display:none;overflow-y:auto;padding:14px 16px 32px;flex:1}
+.vista.on{display:block}
+h2{font:600 18px/1.2 "Barlow Condensed",sans-serif;margin:0 0 4px}
+.nota{font-size:13px;color:var(--sub);margin:4px 0}
+.bloque{background:var(--bg2);border-radius:10px;padding:12px;margin-top:12px}
+.bloque p{margin:6px 0}
+
+/* Semáforo */
+.semaforo{background:var(--bg2);border-radius:12px;padding:12px}
+.sem-cab{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.calado{display:flex;align-items:center;gap:6px;font-weight:600}
+.calado input{width:84px;font-size:16px;padding:8px;border-radius:8px;border:1px solid var(--linea);background:var(--bg);text-align:right;min-height:44px}
+.sem-luz{margin-top:10px;border-radius:10px;padding:12px;font:700 26px/1.1 "Barlow Condensed",sans-serif;color:#fff;background:#7a8a94;text-align:center}
+.sem-luz.verde{background:var(--verde)}.sem-luz.ambar{background:var(--ambar)}.sem-luz.rojo{background:var(--rojo)}
+.sem-det{font-size:14px;margin-top:6px;font-variant-numeric:tabular-nums}
+.curva{position:relative;height:150px;margin-top:8px}
+.curva svg{position:absolute;inset:0;width:100%;height:100%}
+
+/* Estaciones */
+.estaciones{display:grid;gap:10px;margin-top:12px}
+.est{background:var(--bg2);border-radius:12px;padding:12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px}
+.est h3{margin:0;font:600 19px/1.15 "Barlow Condensed",sans-serif;grid-column:1/-1}
+.est .alt{font:700 34px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.est .tend{font-size:15px;font-weight:600}
+.est .det{grid-column:1/-1;font-size:14px;color:var(--sub);font-variant-numeric:tabular-nums}
+.est .viento{text-align:right;font:600 20px/1.1 "Barlow Condensed",sans-serif;white-space:nowrap}
+.sube{color:var(--verde)}.baja{color:var(--rojo)}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;font-size:13px;font-weight:600;background:var(--linea)}
+.chip.alerta{background:var(--ambar);color:#000}.chip.evac{background:var(--rojo);color:#fff}
+
+/* Tabla de viento (estilo tablero) */
+.fila-sel{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.fila-sel select{flex:1;min-height:44px;padding:8px;border-radius:8px;border:1px solid var(--linea);background:var(--bg);font-size:16px}
+.scroll{overflow-x:auto}
+table.vt{border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+.vt th,.vt td{padding:4px 5px;text-align:center;white-space:nowrap;min-width:34px}
+.vt th.r{position:sticky;left:0;background:var(--bg);text-align:left;z-index:1;font-weight:600;font-size:13px}
+.vt .dia{font-weight:700;border-left:2px solid var(--linea)}
+.vt td.n{font-weight:700;color:#000}
+.flecha{display:inline-block;font-size:16px}
+
+/* Avisos */
+.aviso{border-left:4px solid var(--ambar);background:var(--bg2);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:15px}
+.aviso.falta{border-color:var(--rojo)}
+.leyenda,.fuentes{padding-left:0;list-style:none}
+.leyenda li{display:flex;align-items:center;gap:8px;margin:4px 0}
+.leyenda i{width:28px;height:16px;border-radius:3px;border:1px solid #0003}
+.fuentes li{margin:6px 0}
+a{color:light-dark(#0a5f99,#7cc6ec)}
+
+/* Etiquetas del mapa */
+.et-rio{color:light-dark(#0a4a75,#cfe9f7);font:italic 600 13px/1 Barlow,sans-serif;white-space:nowrap;text-shadow:0 0 3px var(--agua),0 0 3px var(--agua);pointer-events:none}
+.et-lugar{color:light-dark(#3d3a1c,#f4ecbd);font:700 14px/1 "Barlow Condensed",sans-serif;white-space:nowrap;text-shadow:0 0 3px var(--tierra),0 0 3px var(--tierra);pointer-events:none}
+.et-grande{font:italic 600 22px/1 Barlow,sans-serif;color:light-dark(#0a4a75,#cfe9f7);letter-spacing:.05em;pointer-events:none;white-space:nowrap}
+.et-boya{font:600 11px/1 Barlow,sans-serif;color:light-dark(#222,#eee);white-space:nowrap;text-shadow:0 0 2px var(--agua),0 0 2px var(--agua);pointer-events:none}
+.grat{display:inline-block;font:600 13px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums;color:#fff;background:#0b2a3cd9;padding:3px 5px;border-radius:4px;white-space:nowrap;pointer-events:none}
+.barco{filter:drop-shadow(0 2px 3px #0008)}
+.leaflet-popup-content{font:15px/1.4 Barlow,sans-serif;margin:10px 12px}
+.leaflet-popup-content h3{margin:0 0 4px;font:600 18px/1.1 "Barlow Condensed",sans-serif}
+
+body.con-panel .botones{right:calc(min(440px,100%) + 12px)}
+@media (max-width:700px){
+  body.con-panel .botones{right:max(12px,env(safe-area-inset-right))}
+  .panel{top:auto;width:100%;height:72vh;border-radius:16px 16px 0 0;transform:translateY(105%)}
+  .panel.abierto{transform:none}
+  .hud-pos{min-width:0;right:76px}
+  .hud-rumbo{display:flex;align-items:center;gap:6px;font-size:13px;color:#9fc3d8;margin-top:4px}
+.hud-rumbo select{background:#123a52;color:#fff;border:1px solid #2c6a8c;border-radius:6px;padding:4px 6px;font-size:14px;min-height:32px}
+.hud-toque{top:auto;bottom:16px;right:76px;min-width:0}
+}
+@media (prefers-reduced-motion:reduce){.panel{transition:none}}

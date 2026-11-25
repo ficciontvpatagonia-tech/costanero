@@ -1,0 +1,31 @@
+name: Actualizar situación del río
+on:
+  schedule:
+    - cron: "7,37 * * * *"   # cada 30 minutos
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: actualizar
+  cancel-in-progress: false
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Alturas SHN + Prefectura + radioavisos
+        run: python3 _scripts/actualizar_situacion.py
+      - name: Boyas UNEN (la posición de UNEN manda)
+        run: |
+          python3 _scripts/chequear_unen.py || echo "UNEN no respondió; se conserva lo anterior"
+          cp datos/boyas_unen.json docs/datos/boyas.json
+      - name: Guardar cambios
+        run: |
+          git config user.name "costanero-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/datos datos/boyas_unen.json datos/historial_boyas.json 2>/dev/null || true
+          git diff --cached --quiet || { git commit -m "Datos del río $(TZ=America/Argentina/Buenos_Aires date '+%d/%m %H:%M')"; git push; }

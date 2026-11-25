@@ -1,0 +1,67 @@
+{
+ "nota": "REFERENCIA, no ruta a seguir. Sirve para ver cómo evoluciona el canal (comparar con boyas UNEN). No se muestra en el mapa.",
+ "registros": [
+  {
+   "fecha": "2020",
+   "fuente": "aportado por Marto (ruta usada en 2020)",
+   "puntos": [
+    {
+     "n": "San Isidro",
+     "lat": -34.448167,
+     "lon": -58.50225
+    },
+    {
+     "n": "Km 22",
+     "lat": -34.4575,
+     "lon": -58.491417
+    },
+    {
+     "n": "Costanero 3",
+     "lat": -34.461,
+     "lon": -58.481083
+    },
+    {
+     "n": "Costanero 1",
+     "lat": -34.47575,
+     "lon": -58.46625
+    }
+   ]
+  },
+  {
+   "fecha": "2026-10-22",
+   "fuente": "Club de Veleros Piedrabuena v2.7",
+   "puntos": [
+    {
+     "n": "CCosta06 · boca del Luján",
+     "lat": -34.448211667,
+     "lon": -58.50283
+    },
+    {
+     "n": "CCosta05 · al través boya Km 23 verde",
+     "lat": -34.454896667,
+     "lon": -58.49636
+    },
+    {
+     "n": "CCosta04 · al través boya Km 22 verde",
+     "lat": -34.46014,
+     "lon": -58.491648333
+    },
+    {
+     "n": "CCosta03 · entre par Km 21",
+     "lat": -34.461718333,
+     "lon": -58.483171667
+    },
+    {
+     "n": "CCosta02 · entre par Km 20,2",
+     "lat": -34.46435,
+     "lon": -58.475763333
+    },
+    {
+     "n": "CCosta01 · espeque Km 19,3",
+     "lat": -34.470846667,
+     "lon": -58.469226667
+    }
+   ]
+  }
+ ]
+}

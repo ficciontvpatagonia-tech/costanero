@@ -1,0 +1,39 @@
+{
+  "nota": "Borrador recopilado 25/11/2026. Verificar antes de usar. No reemplaza carta oficial ni avisos a los navegantes.",
+  "fuentes": {
+    "SHN": "https://www.hidro.gob.ar/nautica/RadioavisosNauticos.asp?op=10 (radioavisos vigentes, actualizado 25/11/2026)",
+    "CVPB": "https://www.clubpiedrabuena.com.ar/Ruta/Rutas/ArSan-ArLaP/container.php (ruta v2.7, 22/10/2026)",
+    "UNEN2021": "https://nautica.news/es/unen-balizamiento-canal-costanero/ (29/03/2021)",
+    "UNEN2022": "https://comunidadnautica.com/unen-anuncia-la-instalacion-de-una-baliza-en-el-km-23-del-canal-costanero/ (31/01/2022)"
+  },
+  "senales": [
+    {"id":"KM24-R","tipo":"espeque lateral babor","color":"rojo","luz":"Fl(3)R 8s","lat":-34.44817,"lon":-58.50133,"fuente":"SHN 2026 (reubicada: 34-26.89S 058-30.08W)","alt":{"CVPB":[-34.447433,-58.501583]}},
+    {"id":"KM23-RGR","tipo":"boya bifurcacion","color":"rojo-verde-rojo","luz":"Fl(2+1)R 10s","lat":-34.452533,"lon":-58.49625,"fuente":"CVPB 2026","alt":{"UNEN2022":[-34.452367,-58.496]}},
+    {"id":"KM23-G","tipo":"boya lateral estribor","color":"verde","luz":"Fl(2)G 8s","lat":-34.455033,"lon":-58.496617,"fuente":"CVPB 2026"},
+    {"id":"KM22-R","tipo":"boya lateral babor","color":"rojo","luz":"Fl(2)R 4s","lat":-34.458633,"lon":-58.490133,"fuente":"CVPB 2026","alt":{"UNEN2021":[-34.458133,-58.48948]}},
+    {"id":"KM22-G","tipo":"boya lateral estribor","color":"verde","luz":"Fl(2)G 4s","lat":-34.460375,"lon":-58.49175,"fuente":"CVPB 2026"},
+    {"id":"KM21-R","tipo":"boya lateral babor","color":"rojo","luz":"Fl(3)R 10s","lat":-34.461367,"lon":-58.483083,"fuente":"CVPB 2026","alt":{"UNEN2021":[-34.4597,-58.482283]}},
+    {"id":"KM21-G","tipo":"boya lateral estribor","color":"verde","luz":"Fl(3)G 10s","lat":-34.462150,"lon":-58.48325,"fuente":"CVPB 2026","alt":{"UNEN2021":[-34.460667,-58.483]}},
+    {"id":"KM20.2-R","tipo":"boya lateral babor","color":"rojo","luz":"Fl(2+1)R 10s / Fl(4)R 12s (fuentes difieren)","lat":-34.464617,"lon":-58.476183,"fuente":"CVPB 2026"},
+    {"id":"KM20.2-G","tipo":"boya lateral estribor","color":"verde","luz":"Fl(4)G 12s","lat":null,"lon":null,"fuente":"FALTA: CVPB repite por error coords de KM23-G"},
+    {"id":"KM19.3-AS","tipo":"espeque aguas seguras (ex Costanero 1)","color":"rojo-blanco","luz":"Mo(A)W 10s","lat":-34.470917,"lon":-58.4693,"fuente":"CVPB 2026"},
+    {"id":"BANCO-E","tipo":"espeque cardinal este ciego","color":"negro-amarillo-negro","luz":null,"lat":-34.47,"lon":-58.478667,"fuente":"UNEN2021 (sin confirmar 2026)"},
+    {"id":"CUBA","tipo":"boya conica ciega","lat":-34.544967,"lon":-58.404967,"fuente":"SHN 2026 instalada"},
+    {"id":"CVB","tipo":"boya conica ciega","lat":-34.528533,"lon":-58.364917,"fuente":"SHN 2026 instalada"},
+    {"id":"YCSI","tipo":"boya conica ciega","lat":-34.545917,"lon":-58.374767,"fuente":"SHN 2026 instalada"}
+  ],
+  "avisos_vigentes_SHN_2026-11": [
+    "FALTA boya peligro aislado VELERO TIDA",
+    "AVERIADA boya peligro aislado ALBA (falta marca tope)",
+    "Restos de ex baliza UNEN roja KM 24 a flor de agua en 34-27.00S 058-30.00W"
+  ],
+  "determinante": "1,20 m en la zona menos profunda, entre KM 20,2 y espeque KM 19,3 (CVPB oct-2026). Fuente 2020 decía 1,50 m.",
+  "waypoints_ruta_CVPB_2026": [
+    ["CCosta06",-34.448211667,-58.50283,"Desembocadura Rio Lujan"],
+    ["CCosta05",-34.454896667,-58.49636,"20-30 m al traves boya KM23 verde"],
+    ["CCosta04",-34.46014,-58.491648333,"20-30 m al traves boya KM22 verde"],
+    ["CCosta03",-34.461718333,-58.483171667,"entre par KM21"],
+    ["CCosta02",-34.46435,-58.475763333,"entre par KM20,2"],
+    ["CCosta01",-34.470846667,-58.469226667,"prox espeque KM19,3"]
+  ]
+}

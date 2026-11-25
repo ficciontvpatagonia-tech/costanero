@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Costanero · Río de la Plata y Delta</title>
+<meta name="description" content="Carta simple del Río de la Plata interior y el Delta: GPS, boyas UNEN, alturas del río (SHN, Prefectura) y viento a 3 días. No reemplaza la carta oficial.">
+<meta name="robots" content="noindex"><!-- beta: sacar al salir de beta -->
+<meta name="theme-color" content="#0b2a3c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icono.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icono-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="estilo.css?v=7">
+</head>
+<body>
+<div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
+
+<!-- Instrumentos sobre el mapa -->
+<div class="hud hud-pos" id="hudPos" aria-live="polite">
+  <div class="hud-l">Posición</div>
+  <div class="hud-v" id="posTxt">Sin GPS</div>
+  <div class="hud-s" id="posSub">Tocá ◎ para ubicarte</div>
+  <label class="hud-rumbo">Línea de rumbo
+    <select id="minRumbo" aria-label="Largo de la línea de rumbo"><option value="5">5 min</option><option value="10">10 min</option><option value="30">30 min</option></select>
+  </label>
+</div>
+
+<div class="botones">
+  <button class="btn-r" id="btnGps" title="Mi posición (GPS)" aria-label="Mi posición">◎</button>
+  <button class="btn-r" id="btnSeguir" title="Seguir el barco" aria-label="Seguir el barco" aria-pressed="false">⤴</button>
+  <button class="btn-r" id="btnPanel" title="Situación del río" aria-label="Abrir panel">☰</button>
+</div>
+
+<div class="hud hud-toque" id="hudToque" hidden>
+  <button class="cerrar" id="cerrarToque" aria-label="Cerrar">×</button>
+  <div class="hud-l">Punto tocado</div>
+  <div class="hud-v" id="toqueTxt"></div>
+  <div class="hud-s" id="toqueSub"></div>
+</div>
+
+<!-- Panel lateral / hoja inferior -->
+<aside class="panel" id="panel" aria-label="Situación del río">
+  <header class="p-cab">
+    <div>
+      <h1>Costanero</h1>
+      <p class="p-sub">Río de la Plata interior y Delta · <span id="actualizado">cargando…</span></p>
+    </div>
+    <button class="cerrar" id="cerrarPanel" aria-label="Cerrar panel">×</button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" class="tab on" data-t="sit" aria-selected="true">Situación</button>
+    <button role="tab" class="tab" data-t="viento" aria-selected="false">Viento 3 días</button>
+    <button role="tab" class="tab" data-t="avisos" aria-selected="false">Avisos</button>
+    <button role="tab" class="tab" data-t="info" aria-selected="false">Fuentes</button>
+  </nav>
+
+  <section class="vista on" id="v-sit">
+    <div class="semaforo" id="semaforo">
+      <div class="sem-cab">
+        <div>
+          <h2>Canal Costanero · paso Km 19,3–20,2</h2>
+          <p class="nota">Determinante 1,20 m + altura en San Fernando</p>
+        </div>
+        <label class="calado">Calado
+          <input id="calado" type="number" inputmode="decimal" min="0.3" max="4" step="0.05" value="1.50"> m
+        </label>
+      </div>
+      <div class="sem-luz" id="semLuz">—</div>
+      <div class="sem-det" id="semDet"></div>
+      <div class="curva" id="curvaSF" aria-label="Altura en San Fernando: últimas 12 h y próximas 8 h"></div>
+    </div>
+    <div id="estaciones" class="estaciones"></div>
+    <div id="pronostico" class="bloque"></div>
+  </section>
+
+  <section class="vista" id="v-viento">
+    <div class="fila-sel">
+      <label for="puntoViento">Punto</label>
+      <select id="puntoViento"></select>
+    </div>
+    <div class="scroll" id="tablaViento"><p class="nota">Cargando pronóstico…</p></div>
+    <p class="nota">Nudos. Viento medio / ráfaga, dirección de donde viene. Modelos ECMWF (europeo) y GFS (americano) vía Open‑Meteo: si coinciden, el pronóstico es más confiable.</p>
+  </section>
+
+  <section class="vista" id="v-avisos">
+    <div id="avisos"></div>
+  </section>
+
+  <section class="vista" id="v-info">
+    <div class="bloque">
+      <h2>Importante</h2>
+      <p>Ayuda para planificar. <strong>No reemplaza la carta náutica oficial, los avisos a los navegantes ni el plotter.</strong> La carta base es la H‑118 del SHN (edición 2016) redibujada en forma simple: los bancos cambian. Las boyas van en la posición que publica UNEN, que es la que manda.</p>
+      <h2>Colores</h2>
+      <ul class="leyenda">
+        <li><i style="background:var(--tierra)"></i>Tierra</li>
+        <li><i style="background:var(--seca)"></i>Se seca con bajante / bañado</li>
+        <li><i style="background:var(--agua)"></i>Aguas someras</li>
+        <li><i style="background:var(--honda)"></i>Más profundo (canales dragados)</li>
+        <li><i style="background:#ff7a00"></i>Ruta Canal Costanero: centro entre boyas UNEN (se actualiza sola)</li>
+        <li><i style="background:#c2188f"></i>Tu línea de rumbo (GPS)</li>
+      </ul>
+      <p class="nota">Balizamiento IALA región B: entrando desde el río, roja a estribor y verde a babor.</p>
+      <h2>Fuentes</h2>
+      <ul class="fuentes">
+        <li>Alturas, pronóstico mareológico, olas y radioavisos: <a href="https://www.hidro.gob.ar/">Servicio de Hidrografía Naval</a></li>
+        <li>Alturas en Tigre, San Fernando, San Isidro y Buenos Aires: <a href="https://contenidosweb.prefecturanaval.gob.ar/alturas/">Prefectura Naval Argentina</a></li>
+        <li>Balizamiento Canal Costanero y Delta: <a href="https://unen.org.ar/">UNEN</a></li>
+        <li>Carta base: SHN H‑118 · Ríos: © colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></li>
+        <li>Viento: <a href="https://open-meteo.com/">Open‑Meteo</a> (ECMWF, GFS)</li>
+        <li>Tráfico de barcos: <a id="linkAis" href="https://www.marinetraffic.com/en/ais/home/centerx:-58.524/centery:-34.433/zoom:13">MarineTraffic</a> (sitio externo)</li>
+      </ul>
+    </div>
+  </section>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="app.js?v=7"></script>
+</body>
+</html>
