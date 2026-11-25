@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=39">
+<link rel="stylesheet" href="estilo.css?v=40">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -43,7 +43,7 @@
 
 <div class="alertas" id="alertas" role="alert" hidden></div>
 
-<div class="rosa" id="rosaViento" aria-live="polite" title="Viento ahora (Open-Meteo)">
+<div class="rosa" id="rosaViento" aria-live="polite" role="button" tabindex="0" title="Viento ahora · tocá para ver el pronóstico de 3 días">
   <svg viewBox="0 0 100 100" aria-hidden="true">
     <circle cx="50" cy="50" r="47" class="rosa-fondo"/>
     <circle cx="50" cy="50" r="47" class="rosa-aro" id="rosaAro"/>
@@ -73,7 +73,6 @@
 
   <nav class="tabs" role="tablist">
     <button role="tab" class="tab on" data-t="sit" aria-selected="true">Situación</button>
-    <button role="tab" class="tab" data-t="viento" aria-selected="false">Viento 3 días</button>
     <button role="tab" class="tab" data-t="avisos" aria-selected="false">Avisos</button>
     <button role="tab" class="tab" data-t="alertas" aria-selected="false">Alertas <span class="cuenta" id="cuentaAlertas" hidden></span></button>
     <button role="tab" class="tab" data-t="recorridos" aria-selected="false">Recorridos</button>
@@ -101,6 +100,7 @@
   </section>
 
   <section class="vista" id="v-viento">
+    <h2>Viento 3 días</h2>
     <div class="fila-sel">
       <label for="puntoViento">Punto</label>
       <select id="puntoViento"></select>
@@ -159,6 +159,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=39"></script>
+<script src="app.js?v=40"></script>
 </body>
 </html>

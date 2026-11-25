@@ -729,6 +729,18 @@ function pintarRosa() {
   $('#rosaViento').title = `Viento ${Math.round(v.vel)} kn del ${cardinal(v.dir)} (${Math.round(v.dir)}°), ráfagas ${Math.round(v.raf)} kn · Open-Meteo ${v.t}`;
   const n = document.querySelector('.rosa-n'); if (n) n.setAttribute('transform', `rotate(${mapa.getBearing ? mapa.getBearing() : 0} 50 50)`);
 }
+// Tocar la rosa abre el pronóstico de 3 días (estilo Windguru) del punto más cercano
+function abrirViento() {
+  const ref = posGps || mapa.getCenter();
+  let mejor = null; for (const [k, p] of Object.entries(PUNTOS)) { const d = distM(ref, L.latLng(p.lat, p.lon)); if (!mejor || d < mejor[1]) mejor = [k, d]; }
+  if (mejor) { sel.value = mejor[0]; guardar('puntoViento', mejor[0]); }
+  abrirPanel(true);
+  document.querySelectorAll('.tab').forEach(x => { x.classList.remove('on'); x.setAttribute('aria-selected', false); });
+  document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === 'v-viento'));
+  cargarViento(true);
+}
+$('#rosaViento').onclick = abrirViento;
+$('#rosaViento').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirViento(); } };
 mapa.on('moveend', () => { clearTimeout(actualizarRosa._t); actualizarRosa._t = setTimeout(() => actualizarRosa(false), 1500); });
 mapa.on('rotate', pintarRosa);
 setInterval(() => actualizarRosa(true), 10 * 60e3);
@@ -802,7 +814,7 @@ if (grabando) iniciarGps(false);
 pintarRec(); listarRecorridos();
 
 // Restaurar la última pestaña (al final: todo lo que usa ya está definido)
-{ const t = document.querySelector(`.tab[data-t="${leer('tab', 'sit')}"]`); if (t) t.click(); }
+{ const t = document.querySelector(`.tab[data-t="${leer('tab', 'sit')}"]`) || document.querySelector('.tab[data-t="sit"]'); if (t) t.click(); }
 
 /* ---------- Offline ---------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
