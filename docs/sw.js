@@ -1,7 +1,7 @@
 // Offline: la carta, las boyas y la app quedan guardadas; la situación del río se pide fresca y si no hay señal se usa la última.
-const V = 'costanero-v2';
+const V = 'costanero-v3';
 const BASE = ['./', 'index.html', 'estilo.css', 'app.js', 'manifest.webmanifest', 'icono.svg',
-  'datos/carta.geojson', 'datos/rios.geojson', 'datos/boyas.json', 'datos/clubes.json',
+  'datos/carta.geojson', 'datos/rios.geojson', 'datos/boyas.json', 'datos/clubes.json', 'datos/veriles.json', 'datos/profundidad.json',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'];
 self.addEventListener('install', e => e.waitUntil(caches.open(V).then(c => c.addAll(BASE)).then(() => self.skipWaiting())));

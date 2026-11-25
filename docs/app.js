@@ -19,8 +19,8 @@ const fmtRumbo = r => `${String(Math.round(r) % 360).padStart(3, '0')}°`;
 const num = (v, d = 2) => v == null || isNaN(v) ? '—' : Number(v).toFixed(d).replace('.', ',');
 
 /* ---------- Mapa ---------- */
-const mapa = L.map('mapa', { zoomControl: false, preferCanvas: true, minZoom: 9, maxZoom: 17,
-  maxBounds: [[-35.0, -59.2], [-33.8, -57.6]], attributionControl: true }).setView([-34.47, -58.47], 13);
+const mapa = L.map('mapa', { zoomControl: false, preferCanvas: true, minZoom: 11, maxZoom: 17,
+  maxBounds: [[-34.72, -58.66], [-34.08, -58.06]], maxBoundsViscosity: 0.8, attributionControl: true }).setView([-34.47, -58.47], 13);
 L.control.zoom({ position: 'bottomright' }).addTo(mapa);
 mapa.attributionControl.setPrefix('').addAttribution('Carta: SHN H‑118 · Boyas: UNEN · Ríos: © OpenStreetMap');
 const renderer = L.canvas({ padding: 0.3 });
@@ -42,10 +42,14 @@ const col = k => PALETA[modo()][k];
 let capasCarta = [];
 const estiloZona = f => ({ stroke: f.properties.z === 'tierra' || f.properties.z === 'seca', color: col('borde'), weight: 0.6,
   fillColor: col(f.properties.z) || col('agua'), fillOpacity: 1 });
+mapa.createPane('tierra').style.zIndex = 260; // la tierra siempre arriba del degradé y del rayado
+const lienzoTierra = L.canvas({ pane: 'tierra', padding: 0.3 });
 fetch('datos/carta.geojson').then(r => r.json()).then(gj => {
-  capasCarta.push(L.geoJSON(gj, { pane: 'carta', renderer: lienzoCarta, interactive: false, style: estiloZona }).addTo(mapa));
+  const esTierra = f => f.properties.z === 'tierra' || f.properties.z === 'seca';
+  capasCarta.push(L.geoJSON(gj, { pane: 'carta', renderer: lienzoCarta, interactive: false, style: estiloZona, filter: f => !esTierra(f) }).addTo(mapa));
+  capasCarta.push(L.geoJSON(gj, { pane: 'tierra', renderer: lienzoTierra, interactive: false, style: estiloZona, filter: esTierra }).addTo(mapa));
 }).catch(() => {});
-oscuro.addEventListener('change', () => { capasCarta.forEach(c => c.setStyle(estiloZona)); document.getElementById('mapa').style.background = col('agua'); dibujarGrilla(); });
+oscuro.addEventListener('change', () => { capasCarta.forEach(c => c.setStyle(estiloZona)); if (typeof dibujarNoPasa === 'function') dibujarNoPasa(); document.getElementById('mapa').style.background = col('agua'); dibujarGrilla(); });
 document.getElementById('mapa').style.background = col('agua');
 
 /* ---------- Grilla de latitud y longitud ---------- */
@@ -147,8 +151,93 @@ fetch('datos/boyas.json').then(r => r.json()).then(d => {
   }
   etiquetasSegunZoom();
   dibujarRuta();
+  armarCorredor(); dibujarNoPasa();
 });
 mapa.on('zoomend', etiquetasSegunZoom);
+
+/* ---------- Capa dinámica "no pasás": profundidad de carta + altura actual del río < calado + margen ---------- */
+const MARGEN = 0.30; // m bajo la quilla
+const GRAD = { dia: [[86, 172, 226], [246, 251, 255]], noche: [[18, 58, 92], [52, 110, 140]] }; // somero → hondo
+let prof = null, capaNoPasa = null;
+const LAT_SF = -34.44, LAT_BA = -34.58;
+function alturaRio(lat) { // interpola San Fernando ↔ Buenos Aires por latitud; sin dato: 0 (cero de la carta, conservador)
+  const m = sit && sit.mareografos, sf = m && ultimo(m.SFER && m.SFER.observada), ba = m && ultimo(m.BSAS && m.BSAS.observada);
+  const hs = sf ? sf[1] : (ba ? ba[1] : 0), hb = ba ? ba[1] : hs;
+  const t = Math.min(Math.max((lat - LAT_SF) / (LAT_BA - LAT_SF), 0), 1);
+  return hs + (hb - hs) * t;
+}
+function profCarta(lat, lon) { // bilineal, null si no hay dato
+  if (!prof) return null;
+  const fx = (lon - prof.w) / (prof.e - prof.w) * prof.cols - 0.5, fy = (prof.n - lat) / (prof.n - prof.s) * prof.rows - 0.5;
+  const x0 = Math.floor(fx), y0 = Math.floor(fy); if (x0 < 0 || y0 < 0 || x0 + 1 >= prof.cols || y0 + 1 >= prof.rows) return null;
+  const g = (x, y) => prof.q[y * prof.cols + x];
+  const a = g(x0, y0), b = g(x0 + 1, y0), c = g(x0, y0 + 1), d = g(x0 + 1, y0 + 1);
+  if (a === -128 || b === -128 || c === -128 || d === -128) return null;
+  const tx = fx - x0, ty = fy - y0;
+  return ((a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty) / 10;
+}
+// Corredor del Canal Costanero entre las boyas UNEN (rojas de un lado, verdes del otro): ahí manda la determinante
+let corredor = null;
+function armarCorredor() {
+  const B = Object.fromEntries(boyas.map(b => [b.name, b]));
+  const rojas = ['KM 24 (Roja)', 'KM 23', 'KM 22 ROJA', 'KM 21 ROJO', 'KM 20.2 ROJA', 'KM 19.3 EX C1'].map(n => B[n]).filter(Boolean);
+  const verdes = ['KM 24 (Verde)', 'KM 23 VERDE', 'KM 22 VERDE', 'KM 21 VERDE', 'KM 20.2 VERDE EX C2', 'KM 19.3 EX C1'].map(n => B[n]).filter(Boolean);
+  corredor = rojas.length > 2 && verdes.length > 2 ? [...rojas, ...verdes.reverse()].map(b => [b.lon, b.lat]) : null;
+}
+function enCorredor(lon, lat) {
+  if (!corredor) return false;
+  let dentro = false;
+  for (let i = 0, j = corredor.length - 1; i < corredor.length; j = i++) {
+    const [xi, yi] = corredor[i], [xj, yj] = corredor[j];
+    if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) dentro = !dentro;
+  }
+  return dentro;
+}
+function dibujarNoPasa() {
+  if (!prof) return;
+  const umbral = (parseFloat(calado.value) || 0) + MARGEN;
+  const ESC = 6, Wc = prof.cols * ESC, Hc = prof.rows * ESC;
+  const cv = document.createElement('canvas'); cv.width = Wc; cv.height = Hc;
+  const cx = cv.getContext('2d'), img = cx.createImageData(Wc, Hc), px = img.data;
+  const yN = merc(prof.n), yS = merc(prof.s);
+  for (let r = 0; r < Hc; r++) {
+    // fila en Mercator → latitud real (misma proyección que el mapa: sin corrimientos)
+    const lat = deg(2 * Math.atan(Math.exp(yN - (yN - yS) * (r + 0.5) / Hc)) - Math.PI / 2), h = alturaRio(lat);
+    for (let c = 0; c < Wc; c++) {
+      const lon = prof.w + (prof.e - prof.w) * (c + 0.5) / Wc;
+      let z = profCarta(lat, lon);
+      if (z === null) continue;
+      if (z < DETERMINANTE && lat > -34.475 && lat < -34.445 && lon > -58.505 && lon < -58.465 && enCorredor(lon, lat)) z = DETERMINANTE;
+      const i = (r * Wc + c) * 4, dAhora = z + h;
+      if (dAhora < umbral) { // no pasás: rayado negro sobre fondo oscuro
+        const raya = (r + c) % 10 < 4;
+        px[i] = px[i + 1] = px[i + 2] = raya ? 0 : 40; px[i + 3] = raya ? 235 : 150;
+      } else if (z > -0.05) { // degradé tipo plotter: azul donde hay poca agua → blanco donde sobra
+        const t = Math.min((dAhora - umbral) / 3, 1), A = GRAD[modo()];
+        px[i] = A[0][0] + (A[1][0] - A[0][0]) * t; px[i + 1] = A[0][1] + (A[1][1] - A[0][1]) * t; px[i + 2] = A[0][2] + (A[1][2] - A[0][2]) * t; px[i + 3] = 255;
+      }
+    }
+  }
+  cx.putImageData(img, 0, 0);
+  const b = [[prof.s, prof.w], [prof.n, prof.e]];
+  if (!capaNoPasa) { mapa.createPane('nopasa').style.zIndex = 250; capaNoPasa = L.imageOverlay(cv.toDataURL(), b, { pane: 'nopasa', interactive: false, opacity: 1 }).addTo(mapa); }
+  else capaNoPasa.setUrl(cv.toDataURL());
+  const hSF = alturaRio(LAT_SF), hBA = alturaRio(LAT_BA);
+  const ley = document.getElementById('leyNoPasa');
+  if (ley) ley.textContent = `Rayado negro = ahora no pasás con ${num(parseFloat(calado.value) || 0)} m de calado (+${num(MARGEN)} m de margen). Río: San Fernando ${num(hSF)} m, Buenos Aires ${num(hBA)} m.`;
+}
+fetch('datos/profundidad.json').then(r => r.json()).then(d => {
+  const bin = atob(d.b64), q = new Int8Array(bin.length); for (let i = 0; i < bin.length; i++) q[i] = (bin.charCodeAt(i) << 24) >> 24;
+  prof = { ...d, q }; dibujarNoPasa();
+}).catch(() => {});
+
+/* ---------- Veriles oficiales de los canales troncales (Emilio Mitre, Paraná de las Palmas…) ---------- */
+fetch('datos/veriles.json').then(r => r.json()).then(v => {
+  const capa = L.layerGroup().addTo(mapa);
+  const info = '<h3>Canal troncal (Emilio Mitre / Paraná de las Palmas)</h3><p>Límites oficiales del canal (veriles) según Vías Navegables / AGP. Canal de buques: cruzarlo rápido y en perpendicular, con vigilancia de buques; no navegar a lo largo.</p>';
+  for (const t of v.rojo) L.polyline(t.map(p => [p[1], p[0]]), { pane: 'ruta', color: '#d7262e', weight: 2.5, dashArray: '8 5', opacity: 0.9 }).bindPopup(info).addTo(capa);
+  for (const t of v.verde) L.polyline(t.map(p => [p[1], p[0]]), { pane: 'ruta', color: '#14953d', weight: 2.5, dashArray: '8 5', opacity: 0.9 }).bindPopup(info).addTo(capa);
+}).catch(() => {});
 
 /* ---------- Clubes y amarras (OpenStreetMap) ---------- */
 const capaClubes = L.layerGroup(), etClubes = L.layerGroup();
@@ -246,7 +335,9 @@ mapa.on('click', e => {
   const p = e.latlng;
   if (!marcaToque) marcaToque = L.circleMarker(p, { radius: 6, color: '#000', fillColor: '#ffd400', fillOpacity: 1, weight: 2 }).addTo(mapa); else marcaToque.setLatLng(p);
   $('#toqueTxt').innerHTML = `${esc(fmtLat(p.lat))}<br>${esc(fmtLon(p.lng))}`;
-  $('#toqueSub').textContent = posGps ? `Desde tu posición: ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(distM(posGps, p))}` : 'Activá el GPS para ver rumbo y distancia';
+  const zc = profCarta(p.lat, p.lng), hr = alturaRio(p.lat);
+  const prf = zc === null ? '' : ` · Prof. ≈ ${num(zc + hr, 1)} m ahora (carta ${num(zc, 1)} + río ${num(hr, 1)})`;
+  $('#toqueSub').textContent = (posGps ? `Desde tu posición: ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(distM(posGps, p))}` : 'Activá el GPS para ver rumbo y distancia') + prf;
   $('#hudToque').hidden = false;
 });
 $('#cerrarToque').onclick = () => { $('#hudToque').hidden = true; marcaToque && marcaToque.remove(); marcaToque = null; };
@@ -268,7 +359,7 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
 /* ---------- Situación del río ---------- */
 const calado = $('#calado');
 calado.value = leer('calado', 1.5);
-calado.oninput = () => { guardar('calado', parseFloat(calado.value)); pintarSemaforo(); };
+calado.oninput = () => { guardar('calado', parseFloat(calado.value)); pintarSemaforo(); clearTimeout(calado._t); calado._t = setTimeout(dibujarNoPasa, 250); };
 const DETERMINANTE = 1.20; // m, Canal Costanero zona menos profunda Km 19,3–20,2 (CVPB oct‑2026)
 let sit = null, vientoAhora = {};
 const ultimo = a => a && a.length ? a[a.length - 1] : null;
@@ -379,7 +470,7 @@ function pintarAvisos() {
   $('#avisos').innerHTML = h;
 }
 function cargarSituacion() {
-  fetch('datos/situacion.json', { cache: 'no-cache' }).then(r => r.json()).then(d => { sit = d; pintarSituacion(); })
+  fetch('datos/situacion.json', { cache: 'no-cache' }).then(r => r.json()).then(d => { sit = d; pintarSituacion(); dibujarNoPasa(); })
     .catch(() => { $('#actualizado').textContent = 'sin conexión'; });
 }
 cargarSituacion(); setInterval(cargarSituacion, 10 * 60 * 1000);
