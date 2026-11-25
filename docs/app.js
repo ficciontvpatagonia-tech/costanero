@@ -136,7 +136,7 @@ function iconoBoya(tp) {
   return L.divIcon({ className: '', iconSize: [24, 30], iconAnchor: [12, 26], popupAnchor: [0, -24],
     html: `<svg width="24" height="30" viewBox="0 0 24 30" aria-hidden="true"><circle cx="12" cy="26" r="1.6" fill="#000"/>${cuerpo}</svg>` });
 }
-const NOMBRE_TIPO = { roja: 'Lateral roja (estribor entrando)', verde: 'Lateral verde (babor entrando)', bif: 'Bifurcación de canal', peligro: 'Peligro aislado', segura: 'Aguas seguras', card: 'Cardinal', especial: 'Especial' };
+const NOMBRE_TIPO = { roja: 'Lateral roja', verde: 'Lateral verde', bif: 'Bifurcación', peligro: 'Peligro aislado', segura: 'Aguas seguras', card: 'Cardinal', especial: 'Especial' };
 let boyas = [], posGps = null;
 function popupBoya(b, tp) {
   const p = L.latLng(b.lat, b.lon);
@@ -152,7 +152,8 @@ fetch('datos/boyas.json').then(r => r.json()).then(d => {
   boyas = d.boyas.filter(b => typeof b.lat === 'number' && typeof b.lon === 'number');
   for (const b of boyas) {
     const tp = tipoBoya(b);
-    L.marker([b.lat, b.lon], { icon: iconoBoya(tp), title: b.name, keyboard: true }).on('click', e => { L.DomEvent.stopPropagation(e); irA(b.lat, b.lon, nombreLindo(b.name.replace(/\s*\((Roja|Verde)\)/i, ''))); }).addTo(capaBoyas);
+    L.marker([b.lat, b.lon], { icon: iconoBoya(tp), title: b.name, keyboard: true }).addTo(capaBoyas);
+    ficha(capaBoyas.getLayers()[capaBoyas.getLayers().length - 1], b.lat, b.lon, nombreLindo(b.name.replace(/\s*\((Roja|Verde)\)/i, '')), [NOMBRE_TIPO[tp.k] + (tp.d ? ' ' + tp.d : ''), b.characteristics ? b.characteristics.replace(/\s*\(.*\)\s*$/, '') : '', b.status && b.status !== 'OK' ? b.status : ''].filter(Boolean).join(' · '));
     const destacada = DESTACADAS.includes(b.name.toUpperCase());
     L.marker([b.lat, b.lon], { pane: 'etiquetas', interactive: false,
       icon: L.divIcon({ className: '', html: `<div class="${destacada ? 'et-boya et-destacada' : 'et-boya'}" style="transform:translate(12px,-22px)">${esc(destacada ? nombreLindo(b.name) : b.name.replace(/\s*\((Roja|Verde)\)/i, ''))}</div>`, iconSize: [0, 0] }) }).addTo(destacada ? etDestacadas : etBoyas);
@@ -272,7 +273,7 @@ const iconoClub = L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11
 fetch('datos/clubes.json').then(r => r.json()).then(d => {
   for (const c of d.clubes) {
     const p = L.latLng(c.lat, c.lon);
-    L.marker(p, { icon: iconoClub, title: c.n }).on('click', e => { L.DomEvent.stopPropagation(e); irA(c.lat, c.lon, c.n); }).addTo(capaClubes);
+    ficha(L.marker(p, { icon: iconoClub, title: c.n }), c.lat, c.lon, c.n, '').addTo(capaClubes);
     L.marker(p, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-club" style="transform:translate(14px,-50%)">${esc(c.n)}</div>`, iconSize: [0, 0] }) }).addTo(etClubes);
   }
   clubesSegunZoom();
@@ -284,7 +285,7 @@ mapa.on('zoomend', clubesSegunZoom);
 fetch('datos/referencias.json').then(r => r.json()).then(d => {
   for (const r of d.referencias) {
     const p = L.latLng(r.lat, r.lon);
-    L.marker(p, { icon: iconoBoya({ k: r.tipo || 'peligro' }), title: r.n }).on('click', e => { L.DomEvent.stopPropagation(e); irA(r.lat, r.lon, r.n); }).addTo(capaBoyas);
+    ficha(L.marker(p, { icon: iconoBoya({ k: r.tipo || 'peligro' }), title: r.n }), r.lat, r.lon, r.n, r.nota).addTo(capaBoyas);
     L.marker(p, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya et-destacada" style="transform:translate(12px,-22px)">${esc(r.n)}</div>`, iconSize: [0, 0] }) }).addTo(etDestacadas);
   }
 }).catch(() => {});
@@ -413,6 +414,16 @@ $('#btnGps').addEventListener('click', () => guardar('gpsUsado', true));
 /* ---------- Ir a: tocar una referencia dibuja la línea desde el barco con rumbo, distancia y tiempo ---------- */
 let objetivo = null, lineaDest = null, marcaDest = null, ultimoKn = null;
 function irA(lat, lon, nombre) { objetivo = { p: L.latLng(lat, lon), n: nombre }; dibujarDestino(); }
+// Ficha de una referencia: datos resumidos + botón "Ir hasta aquí" (recién ahí se dibuja la línea)
+function ficha(marker, lat, lon, nombre, detalle) {
+  marker.bindPopup(() => {
+    const div = document.createElement('div');
+    div.innerHTML = `<h3>${esc(nombre)}</h3>${detalle ? `<p>${esc(detalle)}</p>` : ''}<button class="btn-ir">Ir hasta aquí</button>`;
+    div.querySelector('.btn-ir').onclick = () => { irA(lat, lon, nombre); marker.closePopup(); };
+    return div;
+  }, { closeButton: false });
+  return marker;
+}
 function borrarDestino() { objetivo = null; lineaDest && lineaDest.remove(); marcaDest && marcaDest.remove(); lineaDest = marcaDest = null; }
 function dibujarDestino() {
   if (!objetivo) return;

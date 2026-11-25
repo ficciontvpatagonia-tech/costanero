@@ -151,6 +151,7 @@ a{color:light-dark(#0a5f99,#7cc6ec)}
 .capa-trama{pointer-events:none;background:repeating-linear-gradient(45deg,rgba(0,0,0,.85) 0 2.5px,rgba(0,0,0,.28) 2.5px 9px)}
 .et-destacada{font:700 14px/1 "Barlow Condensed",sans-serif;color:#fff;background:#0b2a3ce0;padding:3px 6px;border-radius:4px;text-shadow:none;border-left:3px solid #d7262e}
 .et-destino{border-left-color:#ffd400;white-space:nowrap}
+.btn-ir{margin-top:6px;width:100%;min-height:40px;border:0;border-radius:8px;background:#ffd400;color:#000;font:700 16px/1 "Barlow Condensed",sans-serif}
 .grat{display:inline-block;font:600 13px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums;color:#fff;background:#0b2a3cd9;padding:3px 5px;border-radius:4px;white-space:nowrap;pointer-events:none}
 .barco{filter:drop-shadow(0 2px 3px #0008)}
 .leaflet-popup-content{font:15px/1.4 Barlow,sans-serif;margin:10px 12px}
