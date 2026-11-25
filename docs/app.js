@@ -687,12 +687,17 @@ function alertasDelDia() {
 function pintarAlertas() {
   const caja = $('#alertas'); if (!caja) return;
   const A = alertasDelDia(), clave = hoyISO() + '|' + A.map(a => a.t).join('|');
+  // pestaña Alertas: siempre con las del día, aunque se cierre el cartel
+  const lista = $('#listaAlertas'), cuenta = $('#cuentaAlertas');
+  if (lista) lista.innerHTML = A.length ? A.map(a => `<div class="alerta-item ${a.n === 'ambar' ? 'ambar' : ''}">${esc(a.t)}</div>`).join('') : '<p>Sin alertas para lo que queda de hoy.</p>';
+  if (cuenta) { cuenta.hidden = !A.length; cuenta.textContent = A.length; cuenta.className = 'cuenta' + (A.some(a => a.n === 'rojo') ? '' : ' ambar'); }
   if (!A.length || leer('alertaCerrada', '') === clave) { caja.hidden = true; return; }
   const nuevo = caja.dataset.clave !== clave; caja.dataset.clave = clave;
   caja.className = 'alertas ' + (A.some(a => a.n === 'rojo') ? 'rojo' : 'ambar');
-  caja.innerHTML = `<button class="cerrar" id="cerrarAlerta" aria-label="Cerrar aviso">×</button><strong>Atención hoy</strong><ul>${A.map(a => `<li>${esc(a.t)}</li>`).join('')}</ul>`;
+  caja.innerHTML = `<button class="cerrar" id="cerrarAlerta" aria-label="Cerrar aviso">×</button><strong>Atención hoy</strong><ul>${A.map(a => `<li>${esc(a.t)}</li>`).join('')}</ul><button class="ver" id="verAlertas">Siguen en la pestaña Alertas</button>`;
   caja.hidden = false;
   $('#cerrarAlerta').onclick = () => { guardar('alertaCerrada', clave); caja.hidden = true; };
+  $('#verAlertas').onclick = () => { abrirPanel(true); document.querySelector('.tab[data-t="alertas"]').click(); };
   if (nuevo && navigator.vibrate) try { navigator.vibrate([200, 100, 200]); } catch (e) {}
 }
 setInterval(pintarAlertas, 5 * 60 * 1000);

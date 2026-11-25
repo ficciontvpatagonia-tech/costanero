@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=29">
+<link rel="stylesheet" href="estilo.css?v=30">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -61,6 +61,7 @@
     <button role="tab" class="tab on" data-t="sit" aria-selected="true">Situación</button>
     <button role="tab" class="tab" data-t="viento" aria-selected="false">Viento 3 días</button>
     <button role="tab" class="tab" data-t="avisos" aria-selected="false">Avisos</button>
+    <button role="tab" class="tab" data-t="alertas" aria-selected="false">Alertas <span class="cuenta" id="cuentaAlertas" hidden></span></button>
     <button role="tab" class="tab" data-t="info" aria-selected="false">Fuentes</button>
   </nav>
 
@@ -95,6 +96,11 @@
 
   <section class="vista" id="v-avisos">
     <div id="avisos"></div>
+  </section>
+
+  <section class="vista" id="v-alertas">
+    <div id="listaAlertas"><p class="nota">Calculando…</p></div>
+    <p class="nota">Solo lo que queda de hoy. Se actualiza cada 5 minutos y al cambiar el calado. El detalle de qué dispara cada alerta está en Fuentes.</p>
   </section>
 
   <section class="vista" id="v-info">
@@ -133,6 +139,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=29"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>
