@@ -3,18 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Costanero · Río de la Plata y Delta</title>
+<title>MS_Costanero · Río de la Plata y Delta</title>
 <meta name="description" content="Carta simple del Río de la Plata interior y el Delta: GPS, boyas UNEN, alturas del río (SHN, Prefectura) y viento a 3 días. No reemplaza la carta oficial.">
 <meta name="robots" content="noindex"><!-- beta: sacar al salir de beta -->
 <meta name="theme-color" content="#0b2a3c">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icono.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icono-192.png">
+<link rel="manifest" href="manifest.webmanifest?v=2">
+<link rel="icon" href="icono-192.png" type="image/png">
+<meta name="apple-mobile-web-app-title" content="MS_Costanero">
+<meta name="application-name" content="MS_Costanero">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=38">
+<link rel="stylesheet" href="estilo.css?v=39">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -63,7 +65,7 @@
 <aside class="panel" id="panel" aria-label="Situación del río">
   <header class="p-cab">
     <div>
-      <h1>Costanero</h1>
+      <h1>MS_Costanero</h1>
       <p class="p-sub">Río de la Plata interior y Delta · <span id="actualizado">cargando…</span></p>
     </div>
     <button class="cerrar" id="cerrarPanel" aria-label="Cerrar panel">×</button>
@@ -157,6 +159,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>
