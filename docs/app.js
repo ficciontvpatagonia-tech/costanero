@@ -423,7 +423,7 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
 /* ---------- Situación del río ---------- */
 const calado = $('#calado');
 calado.value = leer('calado', 1.5);
-calado.oninput = () => { guardar('calado', parseFloat(calado.value)); pintarSemaforo(); clearTimeout(calado._t); calado._t = setTimeout(dibujarNoPasa, 250); };
+calado.oninput = () => { guardar('calado', parseFloat(calado.value)); pintarSemaforo(); clearTimeout(calado._t); calado._t = setTimeout(() => { dibujarNoPasa(); pintarAlertas(); }, 250); };
 const DETERMINANTE = 1.20; // m, Canal Costanero zona menos profunda Km 19,3–20,2 (CVPB oct‑2026)
 let sit = null, vientoAhora = {};
 const ultimo = a => a && a.length ? a[a.length - 1] : null;
@@ -650,6 +650,23 @@ function alertasDelDia() {
       if (x.estado === 'pleamar' && x.altura >= lvl) A.push({ n: 'rojo', t: `Crecida prevista hoy: pleamar ${num(x.altura)} m a las ${x.hora} en ${nom} (alerta ${num(lvl)} m)` });
       if (x.estado === 'bajamar' && x.altura <= UMBRAL_BAJANTE) A.push({ n: 'rojo', t: `Bajante extrema prevista hoy: bajamar ${num(x.altura)} m a las ${x.hora} en ${nom}` });
     }
+  }
+  // 7) calado vs. altura del río: ¿hoy hay momentos en que no pasás el Canal Costanero?
+  const cal = parseFloat(calado.value) || 0, sf = m.SFER;
+  if (sf && cal > 0) {
+    const pts = [], e = estimacion(sf), u = ultimo(sf.observada);
+    if (u) pts.push([u[0], u[1], 'medido']);
+    if (e) for (const x of e.futuro) if (x[0].startsWith(hoy)) pts.push([x[0], x[1], 'estimado']);
+    for (const x of (pb['San Fernando'] || [])) if (x.estado === 'bajamar' && x.fecha === `${dd}/${mm}/${yy}`) {
+      const [hh, mi] = x.hora.split(':'); const t = `${hoy}T${hh}:${mi}:00`;
+      if (new Date(t) > new Date(ahora - 3600e3)) pts.push([t, x.altura, 'bajamar SHN']);
+    }
+    const margen = h => DETERMINANTE + h - cal;
+    const malos = pts.filter(p => margen(p[1]) < 0.2), justos = pts.filter(p => margen(p[1]) >= 0.2 && margen(p[1]) < 0.4);
+    const rango = L => { const ts = L.map(p => p[0]).sort(); const a = hora(ts[0]), b = hora(ts[ts.length - 1]); return a === b ? `a las ${a}` : `de ${a} a ${b}`; };
+    const minimo = L => L.reduce((a, p) => p[1] < a[1] ? p : a);
+    if (malos.length) { const mn = minimo(malos); A.push({ n: 'rojo', t: `Con ${num(cal)} m de calado NO pasás el Canal Costanero (Km 19,3–20,2) hoy ${rango(malos)} h: río mínimo ${num(mn[1])} m en San Fernando (${mn[2]}), quedan ${num(margen(mn[1]))} m bajo la quilla` }); }
+    else if (justos.length) { const mn = minimo(justos); A.push({ n: 'ambar', t: `Con ${num(cal)} m de calado pasás JUSTO el Canal Costanero hoy ${rango(justos)} h: ${num(margen(mn[1]))} m bajo la quilla con ${num(mn[1])} m en San Fernando` }); }
   }
   return A;
 }
