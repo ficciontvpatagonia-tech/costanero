@@ -193,13 +193,24 @@ function enCorredor(lon, lat) {
   }
   return dentro;
 }
+// Capa con trama: un <div> con rayado CSS (tamaño fijo en pantalla) recortado por una máscara georreferenciada
+const CapaTrama = L.ImageOverlay.extend({
+  _initImage() {
+    const el = this._image = L.DomUtil.create('div', 'capa-trama leaflet-image-layer' + (this._zoomAnimated ? ' leaflet-zoom-animated' : ''));
+    el.style.maskImage = el.style.webkitMaskImage = `url(${this._url})`;
+    el.style.maskSize = el.style.webkitMaskSize = '100% 100%';
+    el.style.maskRepeat = el.style.webkitMaskRepeat = 'no-repeat';
+  },
+  setUrl(url) { this._url = url; if (this._image) this._image.style.maskImage = this._image.style.webkitMaskImage = `url(${url})`; return this; },
+});
+let capaGrad = null;
 function dibujarNoPasa() {
   if (!prof) return;
   const umbral = (parseFloat(calado.value) || 0) + MARGEN;
   const ESC = 6, Wc = prof.cols * ESC, Hc = prof.rows * ESC;
-  const cv = document.createElement('canvas'); cv.width = Wc; cv.height = Hc;
-  const cx = cv.getContext('2d'), img = cx.createImageData(Wc, Hc), px = img.data;
-  const yN = merc(prof.n), yS = merc(prof.s);
+  const cvG = document.createElement('canvas'), cvM = document.createElement('canvas'); cvG.width = cvM.width = Wc; cvG.height = cvM.height = Hc;
+  const gG = cvG.getContext('2d'), gM = cvM.getContext('2d'), imG = gG.createImageData(Wc, Hc), imM = gM.createImageData(Wc, Hc), pg = imG.data, pm = imM.data;
+  const yN = merc(prof.n), yS = merc(prof.s), A = GRAD[modo()];
   for (let r = 0; r < Hc; r++) {
     // fila en Mercator → latitud real (misma proyección que el mapa: sin corrimientos)
     const lat = deg(2 * Math.atan(Math.exp(yN - (yN - yS) * (r + 0.5) / Hc)) - Math.PI / 2), h = alturaRio(lat);
@@ -209,19 +220,20 @@ function dibujarNoPasa() {
       if (z === null) continue;
       if (z < DETERMINANTE && lat > -34.475 && lat < -34.445 && lon > -58.505 && lon < -58.465 && enCorredor(lon, lat)) z = DETERMINANTE;
       const i = (r * Wc + c) * 4, dAhora = z + h;
-      if (dAhora < umbral) { // no pasás: rayado negro sobre fondo oscuro
-        const raya = (r + c) % 10 < 4;
-        px[i] = px[i + 1] = px[i + 2] = raya ? 0 : 40; px[i + 3] = raya ? 235 : 150;
-      } else if (z > -0.05) { // degradé tipo plotter: azul donde hay poca agua → blanco donde sobra
-        const t = Math.min((dAhora - umbral) / 3, 1), A = GRAD[modo()];
-        px[i] = A[0][0] + (A[1][0] - A[0][0]) * t; px[i + 1] = A[0][1] + (A[1][1] - A[0][1]) * t; px[i + 2] = A[0][2] + (A[1][2] - A[0][2]) * t; px[i + 3] = 255;
+      if (dAhora < umbral) { pm[i + 3] = 255; } // máscara "no pasás"
+      if (z > -0.05) { // degradé tipo plotter: azul donde hay poca agua → blanco donde sobra
+        const t = Math.min(Math.max((dAhora - umbral) / 3, 0), 1);
+        pg[i] = A[0][0] + (A[1][0] - A[0][0]) * t; pg[i + 1] = A[0][1] + (A[1][1] - A[0][1]) * t; pg[i + 2] = A[0][2] + (A[1][2] - A[0][2]) * t; pg[i + 3] = 255;
       }
     }
   }
-  cx.putImageData(img, 0, 0);
+  gG.putImageData(imG, 0, 0); gM.putImageData(imM, 0, 0);
   const b = [[prof.s, prof.w], [prof.n, prof.e]];
-  if (!capaNoPasa) { mapa.createPane('nopasa').style.zIndex = 250; capaNoPasa = L.imageOverlay(cv.toDataURL(), b, { pane: 'nopasa', interactive: false, opacity: 1 }).addTo(mapa); }
-  else capaNoPasa.setUrl(cv.toDataURL());
+  if (!capaGrad) {
+    mapa.createPane('gradiente').style.zIndex = 240; mapa.createPane('nopasa').style.zIndex = 250;
+    capaGrad = L.imageOverlay(cvG.toDataURL(), b, { pane: 'gradiente', interactive: false }).addTo(mapa);
+    capaNoPasa = new CapaTrama(cvM.toDataURL(), b, { pane: 'nopasa', interactive: false }).addTo(mapa);
+  } else { capaGrad.setUrl(cvG.toDataURL()); capaNoPasa.setUrl(cvM.toDataURL()); }
   const hSF = alturaRio(LAT_SF), hBA = alturaRio(LAT_BA);
   const ley = document.getElementById('leyNoPasa');
   if (ley) ley.textContent = `Rayado negro = ahora no pasás con ${num(parseFloat(calado.value) || 0)} m de calado (+${num(MARGEN)} m de margen). Río: San Fernando ${num(hSF)} m, Buenos Aires ${num(hBA)} m.`;
