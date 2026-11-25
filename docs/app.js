@@ -338,6 +338,7 @@ function destino(p, rumboDeg, m) { // punto a m metros con rumbo dado (distancia
 }
 function actualizarPos(p) {
   const { latitude: la, longitude: lo, accuracy, heading, speed } = p.coords;
+  try { puntoTrack(p); } catch (e) {}
   posGps = L.latLng(la, lo);
   // Rumbo y velocidad: los del GPS si vienen; si no, calculados con la posición anterior
   if (ultFix) { const dm = distM(ultFix.p, posGps), dt = (p.timestamp - ultFix.t) / 1000;
@@ -732,6 +733,73 @@ mapa.on('moveend', () => { clearTimeout(actualizarRosa._t); actualizarRosa._t = 
 mapa.on('rotate', pintarRosa);
 setInterval(() => actualizarRosa(true), 10 * 60e3);
 actualizarRosa(true);
+
+/* ---------- Grabar recorrido (como el "track" de Navionics) ---------- */
+const capaTrack = L.layerGroup().addTo(mapa);
+let grabando = leer('grabando', false), trackActual = leer('trackActual', []), lineaTrack = null, recorridoVisto = null;
+const btnRec = $('#btnRec');
+function distTrack(pts) { let d = 0; for (let i = 1; i < pts.length; i++) d += distM(L.latLng(pts[i - 1][0], pts[i - 1][1]), L.latLng(pts[i][0], pts[i][1])); return d; }
+function pintarRec() {
+  btnRec.setAttribute('aria-pressed', grabando);
+  $('#recTxt').textContent = grabando ? `${(distTrack(trackActual) / 1852).toFixed(1).replace('.', ',')} MN` : 'grabar';
+  const pts = trackActual.map(p => [p[0], p[1]]);
+  if (grabando && pts.length) { if (!lineaTrack) lineaTrack = L.polyline(pts, { pane: 'ruta', color: '#00d5ff', weight: 4, opacity: 0.95 }).addTo(capaTrack); else lineaTrack.setLatLngs(pts); }
+  else if (lineaTrack) { lineaTrack.remove(); lineaTrack = null; }
+}
+function puntoTrack(p) { // llamado en cada posición GPS
+  if (!grabando || p.coords.accuracy > 40) return;
+  const ult = trackActual[trackActual.length - 1], aqui = L.latLng(p.coords.latitude, p.coords.longitude);
+  if (ult && distM(L.latLng(ult[0], ult[1]), aqui) < 10 && p.timestamp - ult[2] < 30000) return; // cada 10 m o 30 s
+  trackActual.push([+aqui.lat.toFixed(6), +aqui.lng.toFixed(6), p.timestamp, p.coords.speed != null ? +(p.coords.speed * 1.94384).toFixed(1) : null]);
+  if (trackActual.length % 5 === 1) guardar('trackActual', trackActual);
+  pintarRec();
+}
+function terminarGrabacion() {
+  grabando = false; guardar('grabando', false);
+  if (trackActual.length > 1) {
+    const L0 = trackActual[0][2], L1 = trackActual[trackActual.length - 1][2];
+    const rec = { id: L0, inicio: L0, fin: L1, puntos: trackActual, dist: distTrack(trackActual), vmax: Math.max(...trackActual.map(p => p[3] || 0)) };
+    const lista = leer('recorridos', []); lista.unshift(rec); guardar('recorridos', lista);
+  }
+  trackActual = []; guardar('trackActual', []); pintarRec(); listarRecorridos();
+}
+btnRec.onclick = async () => {
+  if (grabando) { terminarGrabacion(); return; }
+  grabando = true; trackActual = []; guardar('grabando', true); guardar('trackActual', []);
+  iniciarGps(true);
+  if (!wake) { quiereWake = true; guardar('pantalla', true); pedirWake(); }
+  pintarRec();
+};
+const fmtFecha = t => new Date(t).toLocaleString('es-AR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+const fmtDur = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
+function gpx(r) {
+  const pts = r.puntos.map(p => `<trkpt lat="${p[0]}" lon="${p[1]}"><time>${new Date(p[2]).toISOString()}</time></trkpt>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Costanero" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Recorrido ${fmtFecha(r.inicio)}</name><trkseg>${pts}</trkseg></trk></gpx>`;
+}
+function listarRecorridos() {
+  const caja = $('#listaRecorridos'); if (!caja) return;
+  const lista = leer('recorridos', []);
+  caja.innerHTML = (grabando ? `<div class="reco"><h3>Grabando ahora</h3><p>${trackActual.length} puntos · ${num(distTrack(trackActual) / 1852, 2)} MN</p></div>` : '')
+    + (lista.length ? lista.map((r, i) => `<div class="reco"><h3>${esc(fmtFecha(r.inicio))}</h3><p>${num(r.dist / 1852, 2)} MN · ${fmtDur(r.fin - r.inicio)} · vel. media ${num(r.dist / 1852 / Math.max((r.fin - r.inicio) / 3600000, 0.01), 1)} kn${r.vmax ? ` · máx ${num(r.vmax, 1)} kn` : ''}</p>
+      <div class="btns"><button data-ver="${i}">Ver en el mapa</button><button data-gpx="${i}">Descargar GPX</button><button class="peligro" data-borrar="${i}">Borrar</button></div></div>`).join('') : '<p>Todavía no hay recorridos guardados.</p>');
+  caja.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => {
+    const r = lista[+b.dataset.ver]; if (recorridoVisto) recorridoVisto.remove();
+    recorridoVisto = L.polyline(r.puntos.map(p => [p[0], p[1]]), { pane: 'ruta', color: '#00d5ff', weight: 4, dashArray: '2 6', opacity: 0.95 }).bindPopup(`<h3>Recorrido ${esc(fmtFecha(r.inicio))}</h3><p>${num(r.dist / 1852, 2)} MN · ${fmtDur(r.fin - r.inicio)}</p>`).addTo(capaTrack);
+    seguir = false; btnSeguir.setAttribute('aria-pressed', false); mapa.fitBounds(recorridoVisto.getBounds(), { padding: [40, 40] }); if (innerWidth < 700) abrirPanel(false);
+  });
+  caja.querySelectorAll('[data-gpx]').forEach(b => b.onclick = () => {
+    const r = lista[+b.dataset.gpx], a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([gpx(r)], { type: 'application/gpx+xml' }));
+    a.download = `recorrido-${new Date(r.inicio).toISOString().slice(0, 16).replace(/[:T]/g, '-')}.gpx`; document.body.appendChild(a); a.click(); a.remove();
+  });
+  caja.querySelectorAll('[data-borrar]').forEach(b => b.onclick = () => {
+    if (b.dataset.seguro !== '1') { b.dataset.seguro = '1'; b.textContent = 'Tocá de nuevo para borrar'; return; }
+    const l = leer('recorridos', []); l.splice(+b.dataset.borrar, 1); guardar('recorridos', l); if (recorridoVisto) { recorridoVisto.remove(); recorridoVisto = null; } listarRecorridos();
+  });
+}
+setInterval(() => { if (grabando) { guardar('trackActual', trackActual); listarRecorridos(); } }, 15000);
+if (grabando) iniciarGps(false);
+pintarRec(); listarRecorridos();
 
 // Restaurar la última pestaña (al final: todo lo que usa ya está definido)
 { const t = document.querySelector(`.tab[data-t="${leer('tab', 'sit')}"]`); if (t) t.click(); }
