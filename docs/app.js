@@ -481,7 +481,7 @@ function pintarSemaforo() {
   if (!u) { luz.className = 'sem-luz'; luz.textContent = 'Sin dato de altura'; det.textContent = ''; return; }
   const c = parseFloat(calado.value) || 0, agua = DETERMINANTE + u[1], margen = agua - c;
   luz.className = 'sem-luz ' + (margen >= 0.5 ? 'verde' : margen >= 0.2 ? 'ambar' : 'rojo');
-  luz.textContent = margen >= 0.5 ? 'Pasa con margen' : margen >= 0.2 ? 'Justo: con cuidado' : 'No da';
+  luz.textContent = margen >= 0.5 ? 'Pasa' : margen >= 0.2 ? 'Justo' : 'No pasa';
   const est = estimacion(sf);
   let prox = '';
   if (est && est.futuro.length) {
@@ -667,25 +667,25 @@ function alertasDelDia() {
       const wc = [h.weather_code_ecmwf_ifs025?.[i], h.weather_code_gfs_seamless?.[i]];
       if (!torm && wc.some(c => c >= 95)) torm = t;
     });
-    if (max >= UMBRAL_RAFAGA) A.push({ n: 'rojo', t: `Ráfagas de hasta ${Math.round(max)} kn hoy (${PUNTOS[k].n}, ~${hora(hMax)} h)` });
-    if (torm) A.push({ n: 'rojo', t: `Tormentas eléctricas previstas hoy desde las ${hora(torm)} h (${PUNTOS[k].n})` });
+    if (max >= UMBRAL_RAFAGA) A.push({ n: 'rojo', t: `Ráfagas ${Math.round(max)} kn · ${PUNTOS[k].n} ~${hora(hMax)}` });
+    if (torm) A.push({ n: 'rojo', t: `Tormentas desde ${hora(torm)} · ${PUNTOS[k].n}` });
   }
   // 3) avisos a muy corto plazo del SMN que nombran la zona
   for (const a of (sit?.smn || [])) if (a.zona) A.push({ n: 'rojo', t: `SMN: ${a.titulo}. ${a.texto}` });
   // 4) olas Canal Costanero Km 17 (pronóstico SHN de hoy)
   const ol = (sit?.radioavisos?.olas_costanero_km17 || []).find(o => o.fecha === `${dd}-${mm}-${yy.slice(2)}`);
-  if (ol) { const m = Math.max(ol.manana.alt, ol.tarde.alt); if (m >= UMBRAL_OLA) A.push({ n: 'ambar', t: `Olas de ${num(m, 1)} m previstas hoy en el Canal Costanero (Km 17)` }); }
+  if (ol) { const m = Math.max(ol.manana.alt, ol.tarde.alt); if (m >= UMBRAL_OLA) A.push({ n: 'ambar', t: `Olas ${num(m, 1)} m · Costanero` }); }
   // 5-6) crecidas y bajantes extremas (medido ahora y pleamar/bajamar de hoy)
   const pref = sit?.prefectura || {}, pb = sit?.radioavisos?.pleamar_bajamar || {}, m = sit?.mareografos || {};
   for (const [cod, nom, lvl] of [['SFER', 'San Fernando', pref['San Fernando']?.alerta ?? 3.0], ['BSAS', 'Buenos Aires', pref['Buenos Aires']?.alerta ?? 3.3]]) {
     const u = m[cod] && ultimo(m[cod].observada), e = m[cod] && estimacion(m[cod]);
-    if (u && u[1] >= lvl) A.push({ n: 'rojo', t: `Crecida: ${nom} ${num(u[1])} m (alerta Prefectura ${num(lvl)} m)` });
-    if (u && u[1] <= UMBRAL_BAJANTE) A.push({ n: 'rojo', t: `Bajante extrema: ${nom} ${num(u[1])} m` });
-    if (e && e.dif <= UMBRAL_SOBREELEV) A.push({ n: 'ambar', t: `Bajante por viento: ${nom} ${num(-e.dif)} m por debajo de la marea normal` });
+    if (u && u[1] >= lvl) A.push({ n: 'rojo', t: `Crecida ${nom} ${num(u[1])} m (alerta ${num(lvl)})` });
+    if (u && u[1] <= UMBRAL_BAJANTE) A.push({ n: 'rojo', t: `Bajante extrema ${nom} ${num(u[1])} m` });
+    if (e && e.dif <= UMBRAL_SOBREELEV) A.push({ n: 'ambar', t: `Bajante por viento ${nom} −${num(-e.dif)} m` });
     for (const x of (pb[nom] || [])) {
       if (x.fecha !== `${dd}/${mm}/${yy}`) continue;
-      if (x.estado === 'pleamar' && x.altura >= lvl) A.push({ n: 'rojo', t: `Crecida prevista hoy: pleamar ${num(x.altura)} m a las ${x.hora} en ${nom} (alerta ${num(lvl)} m)` });
-      if (x.estado === 'bajamar' && x.altura <= UMBRAL_BAJANTE) A.push({ n: 'rojo', t: `Bajante extrema prevista hoy: bajamar ${num(x.altura)} m a las ${x.hora} en ${nom}` });
+      if (x.estado === 'pleamar' && x.altura >= lvl) A.push({ n: 'rojo', t: `Crecida ${nom}: pleamar ${num(x.altura)} m ${x.hora}` });
+      if (x.estado === 'bajamar' && x.altura <= UMBRAL_BAJANTE) A.push({ n: 'rojo', t: `Bajante ${nom}: bajamar ${num(x.altura)} m ${x.hora}` });
     }
   }
   // 7) calado vs. altura del río: ¿hoy hay momentos en que no pasás el Canal Costanero?
@@ -709,14 +709,14 @@ function alertasDelDia() {
     }
     if (cur) ventanas.push(cur);
     const hayMalas = pts.some(p => margen(p[1]) < 0.2), justas = pts.some(p => margen(p[1]) >= 0.2 && margen(p[1]) < 0.4);
-    const txtV = v => v[0] === v[1] ? `alrededor de las ${hora(v[0])}` : `entre las ${hora(v[0])} y las ${hora(v[1])}`;
+    const txtV = v => v[0] === v[1] ? `~${hora(v[0])}` : `${hora(v[0])}–${hora(v[1])}`;
     if (hayMalas) {
       A.push({ n: 'rojo', t: ventanas.length
-        ? `Con ${num(cal)} m de calado: pasás el Canal Costanero ${ventanas.map(txtV).join(' y ')}. El resto del día no da.`
-        : `Con ${num(cal)} m de calado: hoy no pasás el Canal Costanero (hasta las ${hora(pts[pts.length - 1][0])}, último dato).` });
+        ? `Costanero ${num(cal)} m: pasás ${ventanas.map(txtV).join(' y ')}`
+        : `Costanero ${num(cal)} m: hoy no pasás` });
     } else if (justas) {
       const j = pts.filter(p => margen(p[1]) < 0.4).map(p => p[0]);
-      A.push({ n: 'ambar', t: `Con ${num(cal)} m de calado: pasás justo el Canal Costanero ${j.length > 1 ? `entre las ${hora(j[0])} y las ${hora(j[j.length - 1])}` : `alrededor de las ${hora(j[0])}`} (menos de 0,40 m bajo la quilla).` });
+      A.push({ n: 'ambar', t: `Costanero ${num(cal)} m: justo ${j.length > 1 ? `${hora(j[0])}–${hora(j[j.length - 1])}` : `~${hora(j[0])}`}` });
     }
   }
   return A;
@@ -731,7 +731,7 @@ function pintarAlertas() {
   if (!A.length || leer('alertaCerrada', '') === clave) { caja.hidden = true; return; }
   const nuevo = caja.dataset.clave !== clave; caja.dataset.clave = clave;
   caja.className = 'alertas ' + (A.some(a => a.n === 'rojo') ? 'rojo' : 'ambar');
-  caja.innerHTML = `<button class="cerrar" id="cerrarAlerta" aria-label="Cerrar aviso">×</button><strong>Atención hoy</strong><ul>${A.map(a => `<li>${esc(a.t)}</li>`).join('')}</ul><button class="ver" id="verAlertas">Ver en Alertas</button>`;
+  caja.innerHTML = `<button class="cerrar" id="cerrarAlerta" aria-label="Cerrar aviso">×</button><strong>Hoy</strong><ul>${A.map(a => `<li>${esc(a.t)}</li>`).join('')}</ul><button class="ver" id="verAlertas">Ver en Alertas</button>`;
   caja.hidden = false;
   $('#cerrarAlerta').onclick = () => { guardar('alertaCerrada', clave); caja.hidden = true; };
   $('#verAlertas').onclick = () => { abrirPanel(true); document.querySelector('.tab[data-t="alertas"]').click(); };
