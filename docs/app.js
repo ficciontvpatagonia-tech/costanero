@@ -102,7 +102,10 @@ function etiquetasSegunZoom() {
 }
 
 /* ---------- Boyas (posición UNEN manda) ---------- */
-const capaBoyas = L.layerGroup().addTo(mapa), etBoyas = L.layerGroup();
+const capaBoyas = L.layerGroup().addTo(mapa), etBoyas = L.layerGroup(), etDestacadas = L.layerGroup().addTo(mapa);
+// Referencias importantes: nombre siempre visible, a cualquier zoom
+const DESTACADAS = ['DON ALEJANDRO', 'NORMA MABEL'];
+const nombreLindo = n => n.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
 function tipoBoya(b) {
   const t = `${b.name} ${b.funcType || ''} ${b.structure || ''}`.toUpperCase();
   if (/CARDINAL\s+(NORTE|SUR|ESTE|OESTE)|CARDINAL\s+(N|S|E|W)\b/.test(t)) return { k: 'card', d: (t.match(/CARDINAL\s+(NORTE|SUR|ESTE|OESTE)/) || [, 'ESTE'])[1][0].replace('O', 'W') };
@@ -146,8 +149,9 @@ fetch('datos/boyas.json').then(r => r.json()).then(d => {
   for (const b of boyas) {
     const tp = tipoBoya(b);
     L.marker([b.lat, b.lon], { icon: iconoBoya(tp), title: b.name, keyboard: true }).bindPopup(() => popupBoya(b, tp)).addTo(capaBoyas);
+    const destacada = DESTACADAS.includes(b.name.toUpperCase());
     L.marker([b.lat, b.lon], { pane: 'etiquetas', interactive: false,
-      icon: L.divIcon({ className: '', html: `<div class="et-boya" style="transform:translate(12px,-22px)">${esc(b.name.replace(/\s*\((Roja|Verde)\)/i, ''))}</div>`, iconSize: [0, 0] }) }).addTo(etBoyas);
+      icon: L.divIcon({ className: '', html: `<div class="${destacada ? 'et-boya et-destacada' : 'et-boya'}" style="transform:translate(12px,-22px)">${esc(destacada ? nombreLindo(b.name) : b.name.replace(/\s*\((Roja|Verde)\)/i, ''))}</div>`, iconSize: [0, 0] }) }).addTo(destacada ? etDestacadas : etBoyas);
   }
   etiquetasSegunZoom();
   dibujarRuta();
