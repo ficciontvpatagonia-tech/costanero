@@ -519,7 +519,10 @@ function pintarSituacion() {
     + (r.observaciones ? `<p>${esc(r.observaciones.toLowerCase())}.</p>` : '')
     + (filas ? `<div class="scroll"><table class="vt">${filas}</table></div>` : '')
     + (r.olas_costanero_km17 && r.olas_costanero_km17.length ? `<p><strong>Olas Canal Costanero Km 17:</strong> ${r.olas_costanero_km17.map(o => `${esc(o.fecha)} mañana ${num(o.manana.alt, 1)} m ${esc(o.manana.dir)}, tarde ${num(o.tarde.alt, 1)} m ${esc(o.tarde.dir)}`).join(' · ')}</p>` : '');
-  $('#actualizado').textContent = 'datos ' + new Date(sit.generado).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+  const edadMin = (Date.now() - new Date(sit.generado)) / 60000, act = $('#actualizado');
+  act.textContent = 'datos ' + new Date(sit.generado).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+    + (edadMin > 90 ? ` · ATENCIÓN: datos de hace ${edadMin > 120 ? Math.round(edadMin / 60) + ' h' : Math.round(edadMin) + ' min'}` : '');
+  act.style.color = edadMin > 90 ? '#ffb347' : ''; act.style.fontWeight = edadMin > 90 ? '700' : '';
   pintarSemaforo();
   pintarAvisos();
 }
