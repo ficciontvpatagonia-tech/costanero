@@ -705,6 +705,33 @@ function pintarAlertas() {
 }
 setInterval(pintarAlertas, 5 * 60 * 1000);
 
+/* ---------- Rosa de viento: dirección e intensidad AHORA (Open-Meteo, mismos modelos que Windy) ---------- */
+let vientoRosa = null, rosaPos = null, rosaT = 0;
+async function actualizarRosa(forzar) {
+  const p = posGps || mapa.getCenter();
+  if (!forzar && rosaPos && distM(rosaPos, p) < 3000 && Date.now() - rosaT < 10 * 60e3) return pintarRosa();
+  try {
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat.toFixed(3)}&longitude=${p.lng.toFixed(3)}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&timezone=America%2FArgentina%2FBuenos_Aires`;
+    const d = await fetch(u).then(r => r.json());
+    if (d.current) { vientoRosa = { vel: d.current.wind_speed_10m, dir: d.current.wind_direction_10m, raf: d.current.wind_gusts_10m, t: d.current.time }; rosaPos = L.latLng(p.lat, p.lng); rosaT = Date.now(); guardar('rosa', vientoRosa); }
+  } catch (e) { vientoRosa = vientoRosa || leer('rosa', null); }
+  pintarRosa();
+}
+function pintarRosa() {
+  const v = vientoRosa; if (!v) return;
+  const giro = (v.dir + 180 + (mapa.getBearing ? mapa.getBearing() : 0)) % 360; // la flecha apunta hacia donde sopla
+  $('#rosaFlecha').style.transform = `rotate(${giro}deg)`;
+  $('#rosaVel').textContent = Math.round(v.vel);
+  $('#rosaSub').textContent = `del ${cardinal(v.dir)} · ráf ${Math.round(v.raf)}`;
+  $('#rosaAro').style.stroke = colorViento(Math.max(v.vel, 5));
+  $('#rosaViento').title = `Viento ${Math.round(v.vel)} kn del ${cardinal(v.dir)} (${Math.round(v.dir)}°), ráfagas ${Math.round(v.raf)} kn · Open-Meteo ${v.t}`;
+  const n = document.querySelector('.rosa-n'); if (n) n.setAttribute('transform', `rotate(${mapa.getBearing ? mapa.getBearing() : 0} 50 50)`);
+}
+mapa.on('moveend', () => { clearTimeout(actualizarRosa._t); actualizarRosa._t = setTimeout(() => actualizarRosa(false), 1500); });
+mapa.on('rotate', pintarRosa);
+setInterval(() => actualizarRosa(true), 10 * 60e3);
+actualizarRosa(true);
+
 // Restaurar la última pestaña (al final: todo lo que usa ya está definido)
 { const t = document.querySelector(`.tab[data-t="${leer('tab', 'sit')}"]`); if (t) t.click(); }
 
