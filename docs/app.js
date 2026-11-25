@@ -663,10 +663,24 @@ function alertasDelDia() {
     }
     const margen = h => DETERMINANTE + h - cal;
     const malos = pts.filter(p => margen(p[1]) < 0.2), justos = pts.filter(p => margen(p[1]) >= 0.2 && margen(p[1]) < 0.4);
-    const rango = L => { const ts = L.map(p => p[0]).sort(); const a = hora(ts[0]), b = hora(ts[ts.length - 1]); return a === b ? `a las ${a}` : `de ${a} a ${b}`; };
-    const minimo = L => L.reduce((a, p) => p[1] < a[1] ? p : a);
-    if (malos.length) { const mn = minimo(malos); A.push({ n: 'rojo', t: `Con ${num(cal)} m de calado NO pasás el Canal Costanero (Km 19,3–20,2) hoy ${rango(malos)} h: río mínimo ${num(mn[1])} m en San Fernando (${mn[2]}), quedan ${num(margen(mn[1]))} m bajo la quilla` }); }
-    else if (justos.length) { const mn = minimo(justos); A.push({ n: 'ambar', t: `Con ${num(cal)} m de calado pasás JUSTO el Canal Costanero hoy ${rango(justos)} h: ${num(margen(mn[1]))} m bajo la quilla con ${num(mn[1])} m en San Fernando` }); }
+    pts.sort((x, y) => x[0] < y[0] ? -1 : 1);
+    // ventanas del día en que SÍ pasás (≥ 0,20 m bajo la quilla); aviso corto solo si hay horas en que no da
+    const ventanas = []; let cur = null;
+    for (const p of pts) {
+      if (margen(p[1]) >= 0.2) { if (!cur) cur = [p[0], p[0]]; else cur[1] = p[0]; }
+      else if (cur) { ventanas.push(cur); cur = null; }
+    }
+    if (cur) ventanas.push(cur);
+    const hayMalas = pts.some(p => margen(p[1]) < 0.2), justas = pts.some(p => margen(p[1]) >= 0.2 && margen(p[1]) < 0.4);
+    const txtV = v => v[0] === v[1] ? `alrededor de las ${hora(v[0])}` : `entre las ${hora(v[0])} y las ${hora(v[1])}`;
+    if (hayMalas) {
+      A.push({ n: 'rojo', t: ventanas.length
+        ? `Con ${num(cal)} m de calado: pasás el Canal Costanero ${ventanas.map(txtV).join(' y ')}. El resto del día no da.`
+        : `Con ${num(cal)} m de calado: hoy no pasás el Canal Costanero (hasta las ${hora(pts[pts.length - 1][0])}, último dato).` });
+    } else if (justas) {
+      const j = pts.filter(p => margen(p[1]) < 0.4).map(p => p[0]);
+      A.push({ n: 'ambar', t: `Con ${num(cal)} m de calado: pasás justo el Canal Costanero ${j.length > 1 ? `entre las ${hora(j[0])} y las ${hora(j[j.length - 1])}` : `alrededor de las ${hora(j[0])}`} (menos de 0,40 m bajo la quilla).` });
+    }
   }
   return A;
 }
