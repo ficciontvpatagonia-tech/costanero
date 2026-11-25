@@ -722,7 +722,8 @@ function pintarRosa() {
   const giro = (v.dir + 180 + (mapa.getBearing ? mapa.getBearing() : 0)) % 360; // la flecha apunta hacia donde sopla
   $('#rosaFlecha').style.transform = `rotate(${giro}deg)`;
   $('#rosaVel').textContent = Math.round(v.vel);
-  $('#rosaSub').textContent = `del ${cardinal(v.dir)} · ráf ${Math.round(v.raf)}`;
+  $('#rosaRaf').textContent = Math.round(v.raf); // ráfaga en amarillo, al lado
+  $('#rosaSub').textContent = cardinal(v.dir);
   $('#rosaAro').style.stroke = colorViento(Math.max(v.vel, 5));
   $('#rosaViento').title = `Viento ${Math.round(v.vel)} kn del ${cardinal(v.dir)} (${Math.round(v.dir)}°), ráfagas ${Math.round(v.raf)} kn · Open-Meteo ${v.t}`;
   const n = document.querySelector('.rosa-n'); if (n) n.setAttribute('transform', `rotate(${mapa.getBearing ? mapa.getBearing() : 0} 50 50)`);

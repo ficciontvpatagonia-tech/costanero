@@ -49,11 +49,11 @@ button{cursor:pointer}
 .rosa-n{fill:#9fc3d8;font:700 11px Barlow,sans-serif;text-anchor:middle}
 .rosa-flecha{fill:#fff}.rosa-cola{stroke:#fff;stroke-width:3;stroke-dasharray:3 3}
 #rosaFlecha{transform-origin:50px 50px;transition:transform .6s}
-.rosa-dato{position:absolute;left:0;right:0;top:40px;text-align:center;color:#fff;line-height:1}
-.rosa-dato b{font:700 30px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums;text-shadow:0 0 6px #0b2a3c}
-.rosa-dato span{font-size:11px;color:#cfe2ee;margin-left:2px}
-.rosa-sub{position:absolute;left:0;right:0;top:71px;text-align:center;color:#cfe2ee;font:600 11px/1.1 Barlow,sans-serif;text-shadow:0 0 4px #0b2a3c}
-@media (max-width:700px){body.con-panel .rosa{display:none}.rosa{width:96px;height:96px}.rosa-dato{top:33px}.rosa-sub{top:61px}}
+.rosa-dato{position:absolute;left:0;right:0;top:33px;display:flex;justify-content:center;align-items:flex-start;gap:2px;color:#fff;line-height:1}
+.rosa-dato b{font:700 40px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums;text-shadow:0 0 6px #0b2a3c}
+.rosa-dato span{font:700 17px/1 "Barlow Condensed",sans-serif;color:#ffd400;margin-top:3px;font-variant-numeric:tabular-nums}
+.rosa-sub{position:absolute;left:0;right:0;top:74px;text-align:center;color:#fff;font:700 15px/1 "Barlow Condensed",sans-serif;text-shadow:0 0 4px #0b2a3c}
+@media (max-width:700px){body.con-panel .rosa{display:none}.rosa{width:96px;height:96px}.rosa-dato{top:27px}.rosa-dato b{font-size:34px}.rosa-sub{top:63px}}
 @media (prefers-reduced-motion:reduce){#rosaFlecha{transition:none}}
 .hud-toque{left:max(12px,env(safe-area-inset-left));top:104px;min-width:220px;padding-right:40px}
 .cerrar{position:absolute;right:6px;top:6px;width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1}
