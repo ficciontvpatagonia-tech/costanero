@@ -1,0 +1,29 @@
+{
+ "fuente": "Rutas Club de Veleros Piedrabuena (oct/nov 2026) + Navionics de Marto (referencia visual); veriles Vías Navegables",
+ "principal": {
+  "nombre": "Paso seguro Emilio Mitre (Km 25,2 → UNEN B → UNEN A)",
+  "km252": [
+   -34.517301667,
+   -58.351195
+  ],
+  "nota": "Cruzar el canal a la altura del Km 25,2 (tramo Km 23–25,2), luego rumbo a UNEN B y UNEN A entre las zonas de refulado."
+ },
+ "alternativa": {
+  "nombre": "Cruce alternativo Km 13,6–14 (frente al Puerto de Buenos Aires)",
+  "punto": [
+   -34.602323333,
+   -58.248968333
+  ],
+  "cruce": [
+   [
+    -34.599799,
+    -58.246614
+   ],
+   [
+    -34.602669,
+    -58.249291
+   ]
+  ],
+  "nota": "Cerca de la boya lateral verde del Km 13,6, al norte del Canal de Acceso al Puerto de Buenos Aires."
+ }
+}

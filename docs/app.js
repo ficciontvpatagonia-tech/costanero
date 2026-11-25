@@ -292,17 +292,30 @@ function dibujarRuta() {
     .bindPopup(() => `<h3>${esc(p.n)}</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(p.lat))}<br>${esc(fmtLon(p.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, L.latLng(p.lat, p.lon)))} · ${fmtDist(distM(posGps, L.latLng(p.lat, p.lon)))}</p>` : ''}<p class="nota">Centro entre boyas UNEN (${esc(boyasFecha)})</p>`).addTo(capaRuta);
 }
 
-/* ---------- Paso seguro del Canal Emilio Mitre: enfilación UNEN B – UNEN A (cruce del refulado) ---------- */
+/* ---------- Pasos seguros del Canal Emilio Mitre ----------
+   Principal: cruzar a la altura del Km 25,2 y seguir a UNEN B → UNEN A (entre las zonas de refulado).
+   Alternativa: cruce por el Km 13,6–14, frente al Puerto de Buenos Aires.
+   UNEN A y B se toman de las posiciones UNEN (si se mueven, el paso se corrige solo). */
+function etiquetaPaso(latlng, texto) {
+  L.marker(latlng, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya et-destacada" style="transform:translate(10px,-50%);border-left-color:#ff7a00">${esc(texto)}</div>`, iconSize: [0, 0] }) }).addTo(capaRuta);
+}
 function dibujarPasoMitre() {
-  const B = Object.fromEntries(boyas.map(b => [b.name, b])), a = B['UNEN A'], b = B['UNEN B'];
-  if (!a || !b) return;
-  // prolongación de la enfilación hacia el SW hasta pasar el canal (corta los veriles en t ≈ −0,43)
-  const t = -0.5, ini = [b.lat + (b.lat - a.lat) * -t, b.lon + (b.lon - a.lon) * -t];
-  const pts = [ini, [b.lat, b.lon], [a.lat, a.lon]];
-  const info = `<h3>Paso seguro Canal Emilio Mitre</h3><p>Enfilación de los espeques de aguas seguras <strong>UNEN B → UNEN A</strong>: marca el paso seguro para cruzar el refulado del canal (posiciones UNEN ${esc(boyasFecha)}).</p><p>Cruzar el canal troncal rápido y en perpendicular, atento al tráfico de buques.</p><p class="nota">Referencia: rutas del Club de Veleros Piedrabuena (2026). No reemplaza la carta.</p>`;
-  L.polyline(pts, { pane: 'ruta', color: '#ff7a00', weight: 4, opacity: 0.95, dashArray: '10 6' }).bindPopup(info).addTo(capaRuta);
-  const mid = [(b.lat + a.lat) / 2, (b.lon + a.lon) / 2];
-  L.marker(mid, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: '<div class="et-boya et-destacada" style="transform:translate(10px,-50%);border-left-color:#ff7a00">Paso seguro Mitre</div>', iconSize: [0, 0] }) }).addTo(capaRuta);
+  fetch('datos/pasos_mitre.json').then(r => r.json()).then(P => {
+    const B = Object.fromEntries(boyas.map(b => [b.name, b])), a = B['UNEN A'], b = B['UNEN B'];
+    const nota = '<p>Cruzar el canal troncal rápido y en perpendicular, atento al tráfico de buques.</p><p class="nota">Referencia: rutas del Club de Veleros Piedrabuena (2026); límites del canal: Vías Navegables. No reemplaza la carta.</p>';
+    if (a && b) {
+      const pts = [P.principal.km252, [b.lat, b.lon], [a.lat, a.lon]];
+      L.polyline(pts, { pane: 'ruta', color: '#ff7a00', weight: 4, opacity: 0.95, dashArray: '10 6' })
+        .bindPopup(`<h3>${esc(P.principal.nombre)}</h3><p>${esc(P.principal.nota)}</p><p>UNEN B y UNEN A: posiciones UNEN ${esc(boyasFecha)}.</p>${nota}`).addTo(capaRuta);
+      L.circleMarker(P.principal.km252, { pane: 'ruta', radius: 5, color: '#ff7a00', fillColor: '#fff', fillOpacity: 1, weight: 2 })
+        .bindPopup(`<h3>Cruce Km 25,2</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(P.principal.km252[0]))}<br>${esc(fmtLon(P.principal.km252[1]))}</p><p>~50 m al SW de la boya verde del Km 25,2 (Club Piedrabuena 2026).</p>`).addTo(capaRuta);
+      etiquetaPaso([(b.lat + a.lat) / 2, (b.lon + a.lon) / 2], 'Paso seguro Mitre (Km 25,2)');
+    }
+    const al = P.alternativa;
+    L.polyline(al.cruce, { pane: 'ruta', color: '#ff7a00', weight: 4, opacity: 0.85, dashArray: '4 6' })
+      .bindPopup(`<h3>${esc(al.nombre)}</h3><p>${esc(al.nota)}</p>${nota}`).addTo(capaRuta);
+    etiquetaPaso(al.cruce[1], 'Cruce alternativo Km 14');
+  }).catch(() => {});
 }
 
 /* ---------- GPS ---------- */
