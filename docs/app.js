@@ -816,6 +816,19 @@ pintarRec(); listarRecorridos();
 // Restaurar la última pestaña (al final: todo lo que usa ya está definido)
 { const t = document.querySelector(`.tab[data-t="${leer('tab', 'sit')}"]`) || document.querySelector('.tab[data-t="sit"]'); if (t) t.click(); }
 
+/* ---------- Botón "Instalar app": solo si el navegador ofrece instalarla y no está instalada ---------- */
+let pedidoInstalar = null;
+const btnInstalar = $('#btnInstalar');
+const instalada = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedidoInstalar = e; if (!instalada()) btnInstalar.hidden = false; });
+addEventListener('appinstalled', () => { btnInstalar.hidden = true; pedidoInstalar = null; });
+btnInstalar.onclick = async () => {
+  if (!pedidoInstalar) return;
+  pedidoInstalar.prompt();
+  try { await pedidoInstalar.userChoice; } catch (e) {}
+  pedidoInstalar = null; btnInstalar.hidden = true;
+};
+
 /* ---------- Offline ---------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 }

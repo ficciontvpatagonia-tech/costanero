@@ -80,6 +80,7 @@ button{cursor:pointer}
 .reco .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 .reco button{min-height:40px;padding:6px 12px;border-radius:8px;border:1px solid var(--linea);background:var(--bg);font-weight:600}
 .reco button.peligro{color:#d7262e}
+.instalar{position:fixed;z-index:690;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom));min-height:48px;padding:10px 18px;border-radius:99px;border:2px solid #fff;background:#ff7a00;color:#fff;font:700 17px/1 "Barlow Condensed",sans-serif;box-shadow:0 6px 18px #0007}
 .cuenta{display:inline-block;min-width:20px;padding:1px 6px;margin-left:2px;border-radius:99px;background:#d7262e;color:#fff;font-size:12px;line-height:18px;text-align:center}
 .cuenta.ambar{background:#e39b0b;color:#000}
 .alerta-item{border-left:5px solid #d7262e;background:var(--bg2);border-radius:8px;padding:10px 12px;margin:8px 0;font-size:15px}
