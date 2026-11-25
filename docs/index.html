@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=46">
+<link rel="stylesheet" href="estilo.css?v=47">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -42,6 +42,12 @@
 </div>
 
 <div class="alertas" id="alertas" role="alert" hidden></div>
+
+<aside class="hoja-viento" id="hojaViento" aria-label="Viento 3 días" hidden>
+  <button class="cerrar" id="cerrarViento" aria-label="Cerrar">×</button>
+  <select id="puntoViento" aria-label="Punto"></select>
+  <div class="scroll" id="tablaViento"></div>
+</aside>
 
 <div class="rosa" id="rosaViento" aria-live="polite" role="button" tabindex="0" title="Viento ahora · tocá para ver el pronóstico de 3 días">
   <svg viewBox="0 0 100 100" aria-hidden="true">
@@ -80,37 +86,23 @@
     <button role="tab" class="tab" data-t="avisos" aria-selected="false">Avisos</button>
     <button role="tab" class="tab" data-t="alertas" aria-selected="false">Alertas <span class="cuenta" id="cuentaAlertas" hidden></span></button>
     <button role="tab" class="tab" data-t="recorridos" aria-selected="false">Recorridos</button>
-    <button role="tab" class="tab" data-t="info" aria-selected="false">Fuentes</button>
+    <button role="tab" class="tab" data-t="info" aria-selected="false">Info</button>
   </nav>
 
   <section class="vista on" id="v-sit">
     <div class="semaforo" id="semaforo">
       <div class="sem-cab">
-        <div>
-          <h2>Canal Costanero · paso Km 19,3–20,2</h2>
-          <p class="nota">Determinante 1,20 m + altura en San Fernando</p>
-        </div>
+        <h2>Canal Costanero</h2>
         <label class="calado">Calado
           <input id="calado" type="number" inputmode="decimal" min="0.3" max="4" step="0.05" value="1.50"> m
         </label>
       </div>
       <div class="sem-luz" id="semLuz">—</div>
       <div class="sem-det" id="semDet"></div>
-      <p class="nota" id="leyNoPasa"></p>
-      <div class="curva" id="curvaSF" aria-label="Altura en San Fernando: últimas 12 h y próximas 8 h"></div>
+      <div class="curva" id="curvaSF" aria-label="Altura en San Fernando"></div>
     </div>
     <div id="estaciones" class="estaciones"></div>
     <div id="pronostico" class="bloque"></div>
-  </section>
-
-  <section class="vista" id="v-viento">
-    <h2>Viento 3 días</h2>
-    <div class="fila-sel">
-      <label for="puntoViento">Punto</label>
-      <select id="puntoViento"></select>
-    </div>
-    <div class="scroll" id="tablaViento"><p class="nota">Cargando pronóstico…</p></div>
-    <p class="nota">Nudos. Viento medio / ráfaga, dirección de donde viene. Modelos ECMWF (europeo) y GFS (americano) vía Open‑Meteo: si coinciden, el pronóstico es más confiable.</p>
   </section>
 
   <section class="vista" id="v-avisos">
@@ -118,51 +110,33 @@
   </section>
 
   <section class="vista" id="v-alertas">
-    <div id="listaAlertas"><p class="nota">Calculando…</p></div>
-    <p class="nota">Solo lo que queda de hoy. Se actualiza cada 5 minutos y al cambiar el calado. El detalle de qué dispara cada alerta está en Fuentes.</p>
+    <div id="listaAlertas"></div>
   </section>
 
   <section class="vista" id="v-recorridos">
     <div id="listaRecorridos"></div>
-    <p class="nota">Para grabar: botón rojo ● "grabar" a la derecha del mapa. Mientras graba, la pantalla queda encendida (si se apaga, el teléfono corta el GPS de la página). Los recorridos quedan guardados en este teléfono; "Descargar GPX" los pasa a Navionics, OpenCPN o Google Earth.</p>
   </section>
 
   <section class="vista" id="v-info">
-    <div class="bloque">
-      <h2>Importante</h2>
-      <p>Ayuda para planificar. <strong>No reemplaza la carta náutica oficial, los avisos a los navegantes ni el plotter.</strong> La carta base es la H‑118 del SHN (edición 2016) redibujada en forma simple. Las profundidades salen de sus sondajes (leídos automáticamente e interpolados, aproximados) más la altura actual del río: los bancos cambian. Las boyas van en la posición que publica UNEN, que es la que manda.</p>
-      <h2>Colores</h2>
-      <ul class="leyenda">
-        <li><i style="background:var(--tierra)"></i>Tierra</li>
-        <li><i style="background:var(--seca)"></i>Se seca con bajante / bañado</li>
-        <li><i style="background:linear-gradient(90deg,#56ace2,#f6fbff)"></i>Agua: azul donde hay poca, blanco donde sobra (carta + altura actual del río)</li>
-        <li><i style="background:repeating-linear-gradient(45deg,#000 0 4px,#333 4px 10px)"></i>Rayado negro: ahora no pasás con tu calado</li>
-        <li><i style="background:#ff7a00"></i>Ruta Canal Costanero: centro entre boyas UNEN (se actualiza sola)</li>
-        <li><i style="background:repeating-linear-gradient(90deg,#ff7a00 0 10px,transparent 10px 16px)"></i>Pasos del Emilio Mitre: principal Km 25,2 → UNEN B → UNEN A; alternativo Km 14</li>
-        <li><i style="background:#c2188f"></i>Tu línea de rumbo (GPS)</li>
-        <li><i style="background:repeating-linear-gradient(90deg,#d7262e 0 8px,transparent 8px 12px)"></i><i style="background:repeating-linear-gradient(90deg,#14953d 0 8px,transparent 8px 12px)"></i>Límites del canal troncal Emilio Mitre / Paraná de las Palmas (Vías Navegables)</li>
-        <li><i style="background:#0b2a3c;border-radius:50%"></i>Clubes y amarras (OpenStreetMap)</li>
-      </ul>
-      <h2>Avisos en pantalla (solo lo que queda de hoy)</h2>
-      <p>Ráfagas de 30 kn o más · tormentas eléctricas (modelos ECMWF/GFS) · aviso a muy corto plazo del SMN para la zona · olas de 1 m o más en el Canal Costanero (SHN) · crecida: altura o pleamar de hoy en el nivel de alerta de Prefectura · bajante: altura o bajamar de hoy de 0,30 m o menos, o 0,80 m por debajo de la marea normal · con tu calado: si hoy en algún momento quedan menos de 0,20 m bajo la quilla en el Canal Costanero (rojo) o entre 0,20 y 0,40 m (naranja).</p>
-      <p class="nota">Balizamiento IALA región B: entrando desde el río, roja a estribor y verde a babor.</p>
-      <h2>Fuentes</h2>
-      <ul class="fuentes">
-        <li>Alturas, pronóstico mareológico, olas y radioavisos: <a href="https://www.hidro.gob.ar/">Servicio de Hidrografía Naval</a></li>
-        <li>Alturas en Tigre, San Fernando, San Isidro y Buenos Aires: <a href="https://contenidosweb.prefecturanaval.gob.ar/alturas/">Prefectura Naval Argentina</a></li>
-        <li>Balizamiento Canal Costanero y Delta: <a href="https://unen.org.ar/">UNEN</a></li>
-        <li>Carta base: SHN H‑118 · Ríos: © colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></li>
-        <li>Viento y tormentas: <a href="https://open-meteo.com/">Open‑Meteo</a> (ECMWF, GFS)</li>
-        <li>Avisos a muy corto plazo: <a href="https://www.smn.gob.ar/">Servicio Meteorológico Nacional</a> (CC BY 4.0)</li>
-        <li>Límites de canales troncales: <a href="https://viasnavegables.com.ar/servicios/batimetria.php">Vías Navegables</a> (AGP)</li>
-        <li>Tráfico de barcos: <a id="linkAis" href="https://www.marinetraffic.com/en/ais/home/centerx:-58.524/centery:-34.433/zoom:13">MarineTraffic</a> (sitio externo)</li>
-      </ul>
-    </div>
+    <ul class="leyenda">
+      <li><i style="background:var(--tierra)"></i>Tierra</li>
+      <li><i style="background:var(--seca)"></i>Se seca</li>
+      <li><i style="background:linear-gradient(90deg,#56ace2,#f6fbff)"></i>Poca agua → mucha agua (ahora)</li>
+      <li><i style="background:repeating-linear-gradient(45deg,#000 0 4px,#333 4px 10px)"></i>No pasás con tu calado</li>
+      <li><i style="background:#ff7a00"></i>Ruta Canal Costanero</li>
+      <li><i style="background:repeating-linear-gradient(90deg,#ff7a00 0 10px,transparent 10px 16px)"></i>Pasos del Emilio Mitre</li>
+      <li><i style="background:repeating-linear-gradient(90deg,#d7262e 0 8px,#14953d 8px 16px)"></i>Límites canal troncal</li>
+      <li><i style="background:#c2188f"></i>Tu rumbo</li>
+      <li><i style="background:#00d5ff"></i>Recorrido grabado</li>
+      <li><i style="background:#0b2a3c;border-radius:50%"></i>Clubes y amarras</li>
+    </ul>
+    <p>IALA B: roja a estribor entrando.</p>
+    <p class="nota">No reemplaza la carta oficial. Fuentes: <a href="https://www.hidro.gob.ar/">SHN</a> · <a href="https://contenidosweb.prefecturanaval.gob.ar/alturas/">Prefectura</a> · <a href="https://unen.org.ar/">UNEN</a> · <a href="https://viasnavegables.com.ar/">Vías Navegables</a> · <a href="https://www.smn.gob.ar/">SMN</a> · <a href="https://open-meteo.com/">Open‑Meteo</a> · <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a> · <a id="linkAis" href="https://www.marinetraffic.com/en/ais/home/centerx:-58.524/centery:-34.433/zoom:13">AIS (MarineTraffic)</a></p>
   </section>
 </aside>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=46"></script>
+<script src="app.js?v=47"></script>
 </body>
 </html>

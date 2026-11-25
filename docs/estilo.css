@@ -83,6 +83,10 @@ button{cursor:pointer}
 .zona-instalar{background:var(--instr);padding:0 16px 10px}
 .zona-instalar .nota{color:#cfe2ee}
 .instalar{width:100%;min-height:44px;padding:8px 14px;border-radius:10px;border:2px solid #fff;background:#ff7a00;color:#fff;font:700 17px/1 "Barlow Condensed",sans-serif}
+.hoja-viento{position:fixed;z-index:650;left:max(12px,env(safe-area-inset-left));bottom:calc(64px + env(safe-area-inset-bottom));width:min(620px,calc(100% - 24px));max-height:70vh;overflow:auto;background:var(--bg);color:var(--ink);border-radius:14px;box-shadow:0 10px 30px #0008;padding:44px 10px 10px}
+.hoja-viento select{position:absolute;top:8px;left:10px;right:48px;min-height:34px;border-radius:8px;border:1px solid var(--linea);background:var(--bg2);font-size:15px;padding:4px 8px}
+.hoja-viento .cerrar{color:var(--ink)}
+@media (max-width:700px){.hoja-viento{left:0;right:0;bottom:0;width:100%;border-radius:16px 16px 0 0;max-height:60vh;padding-bottom:calc(10px + env(safe-area-inset-bottom))}}
 .cuenta{display:inline-block;min-width:20px;padding:1px 6px;margin-left:2px;border-radius:99px;background:#d7262e;color:#fff;font-size:12px;line-height:18px;text-align:center}
 .cuenta.ambar{background:#e39b0b;color:#000}
 .alerta-item{border-left:5px solid #d7262e;background:var(--bg2);border-radius:8px;padding:10px 12px;margin:8px 0;font-size:15px}

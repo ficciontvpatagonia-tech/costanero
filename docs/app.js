@@ -144,7 +144,7 @@ function popupBoya(b, tp) {
   return `<h3>${esc(b.name)}</h3><p>${esc(NOMBRE_TIPO[tp.k] + (tp.d ? ' ' + tp.d : ''))}${b.funcType ? ' · ' + esc(b.funcType) : ''}</p>`
     + (b.characteristics ? `<p>Luz: ${esc(b.characteristics)}</p>` : '')
     + `<p style="font-variant-numeric:tabular-nums">${esc(fmtLat(b.lat))}<br>${esc(fmtLon(b.lon))}</p>`
-    + `<p class="nota">Estado UNEN: ${esc(b.status || '—')} · posición UNEN ${esc(boyasFecha)}</p>${desde}`;
+    + (b.status && b.status !== 'OK' ? `<p><strong>${esc(b.status)}</strong></p>` : '') + desde;
 }
 let boyasFecha = '';
 fetch('datos/boyas.json').then(r => r.json()).then(d => {
@@ -250,7 +250,7 @@ function dibujarNoPasa() {
   } else { capaGrad.setUrl(cvG2.toDataURL()); capaNoPasa.setUrl(cvM2.toDataURL()); }
   const hSF = alturaRio(LAT_SF), hBA = alturaRio(LAT_BA);
   const ley = document.getElementById('leyNoPasa');
-  if (ley) ley.textContent = `Rayado negro = ahora no pasás con ${num(parseFloat(calado.value) || 0)} m de calado (+${num(MARGEN)} m de margen). Río: San Fernando ${num(hSF)} m, Buenos Aires ${num(hBA)} m.`;
+
 }
 fetch('datos/profundidad.json').then(r => r.json()).then(d => {
   const bin = atob(d.b64), q = new Int8Array(bin.length); for (let i = 0; i < bin.length; i++) q[i] = (bin.charCodeAt(i) << 24) >> 24;
@@ -260,7 +260,7 @@ fetch('datos/profundidad.json').then(r => r.json()).then(d => {
 /* ---------- Veriles oficiales de los canales troncales (Emilio Mitre, Paraná de las Palmas…) ---------- */
 fetch('datos/veriles.json').then(r => r.json()).then(v => {
   const capa = L.layerGroup().addTo(mapa);
-  const info = '<h3>Canal troncal (Emilio Mitre / Paraná de las Palmas)</h3><p>Límites oficiales del canal (veriles) según Vías Navegables / AGP. Canal de buques: cruzarlo rápido y en perpendicular, con vigilancia de buques; no navegar a lo largo.</p>';
+  const info = '<h3>Canal troncal</h3><p>Canal de buques: cruzar en perpendicular.</p>';
   for (const t of v.rojo) L.polyline(t.map(p => [p[1], p[0]]), { pane: 'ruta', color: '#d7262e', weight: 2.5, dashArray: '8 5', opacity: 0.9 }).bindPopup(info).addTo(capa);
   for (const t of v.verde) L.polyline(t.map(p => [p[1], p[0]]), { pane: 'ruta', color: '#14953d', weight: 2.5, dashArray: '8 5', opacity: 0.9 }).bindPopup(info).addTo(capa);
 }).catch(() => {});
@@ -272,7 +272,7 @@ const iconoClub = L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11
 fetch('datos/clubes.json').then(r => r.json()).then(d => {
   for (const c of d.clubes) {
     const p = L.latLng(c.lat, c.lon);
-    L.marker(p, { icon: iconoClub, title: c.n }).bindPopup(() => `<h3>${esc(c.n)}</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(c.lat))}<br>${esc(fmtLon(c.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(distM(posGps, p))}</p>` : ''}<p class="nota">Ubicación aproximada del club o amarra (OpenStreetMap), no de su canal de acceso.</p>`).addTo(capaClubes);
+    L.marker(p, { icon: iconoClub, title: c.n }).bindPopup(() => `<h3>${esc(c.n)}</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(c.lat))}<br>${esc(fmtLon(c.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(distM(posGps, p))}</p>` : ''}`).addTo(capaClubes);
     L.marker(p, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-club" style="transform:translate(14px,-50%)">${esc(c.n)}</div>`, iconSize: [0, 0] }) }).addTo(etClubes);
   }
   clubesSegunZoom();
@@ -284,7 +284,7 @@ mapa.on('zoomend', clubesSegunZoom);
 fetch('datos/referencias.json').then(r => r.json()).then(d => {
   for (const r of d.referencias) {
     const p = L.latLng(r.lat, r.lon);
-    L.marker(p, { icon: iconoBoya({ k: r.tipo || 'peligro' }), title: r.n }).bindPopup(() => `<h3>${esc(r.n)}</h3><p>${esc(r.nota)}</p><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(r.lat))}<br>${esc(fmtLon(r.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(distM(posGps, p))}</p>` : ''}<p class="nota">${esc(r.fuente)}</p>`).addTo(capaBoyas);
+    L.marker(p, { icon: iconoBoya({ k: r.tipo || 'peligro' }), title: r.n }).bindPopup(() => `<h3>${esc(r.n)}</h3><p>${esc(r.nota)}</p><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(r.lat))}<br>${esc(fmtLon(r.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(distM(posGps, p))}</p>` : ''}`).addTo(capaBoyas);
     L.marker(p, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya et-destacada" style="transform:translate(12px,-22px)">${esc(r.n)}</div>`, iconSize: [0, 0] }) }).addTo(etDestacadas);
   }
 }).catch(() => {});
@@ -305,10 +305,10 @@ function dibujarRuta() {
     pts.push({ n, lat: bs.reduce((a, b) => a + b.lat, 0) / bs.length, lon: bs.reduce((a, b) => a + b.lon, 0) / bs.length });
   }
   if (pts.length < 2) return;
-  const info = `<h3>Ruta Canal Costanero</h3><p>Pasa por el centro de cada par de boyas, según las posiciones de UNEN del ${esc(boyasFecha)}. Se recalcula sola cuando UNEN mueve una boya.</p><p><strong>Mínimo 1,20 m</strong> entre Km 20,2 y Km 19,3 (más la altura del río). Mirá el semáforo.</p><p class="nota">No reemplaza la carta ni los avisos a los navegantes.</p>`;
+  const info = `<h3>Ruta Canal Costanero</h3><p>Mínimo 1,20 m + altura del río.</p>`;
   L.polyline(pts.map(p => [p.lat, p.lon]), { pane: 'ruta', color: '#ff7a00', weight: 4, opacity: 0.95 }).bindPopup(info).addTo(capaRuta);
   for (const p of pts) L.circleMarker([p.lat, p.lon], { pane: 'ruta', radius: 5, color: '#ff7a00', fillColor: '#fff', fillOpacity: 1, weight: 2 })
-    .bindPopup(() => `<h3>${esc(p.n)}</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(p.lat))}<br>${esc(fmtLon(p.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, L.latLng(p.lat, p.lon)))} · ${fmtDist(distM(posGps, L.latLng(p.lat, p.lon)))}</p>` : ''}<p class="nota">Centro entre boyas UNEN (${esc(boyasFecha)})</p>`).addTo(capaRuta);
+    .bindPopup(() => `<h3>${esc(p.n)}</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(p.lat))}<br>${esc(fmtLon(p.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, L.latLng(p.lat, p.lon)))} · ${fmtDist(distM(posGps, L.latLng(p.lat, p.lon)))}</p>` : ''}`).addTo(capaRuta);
 }
 
 /* ---------- Pasos seguros del Canal Emilio Mitre ----------
@@ -321,18 +321,18 @@ function etiquetaPaso(latlng, texto) {
 function dibujarPasoMitre() {
   fetch('datos/pasos_mitre.json').then(r => r.json()).then(P => {
     const B = Object.fromEntries(boyas.map(b => [b.name, b])), a = B['UNEN A'], b = B['UNEN B'];
-    const nota = '<p>Cruzar el canal troncal rápido y en perpendicular, atento al tráfico de buques.</p><p class="nota">Referencia: rutas del Club de Veleros Piedrabuena (2026); límites del canal: Vías Navegables. No reemplaza la carta.</p>';
+    const nota = '<p>Cruzar rápido y en perpendicular.</p>';
     if (a && b) {
       const pts = [P.principal.km252, [b.lat, b.lon], [a.lat, a.lon]];
       L.polyline(pts, { pane: 'ruta', color: '#ff7a00', weight: 4, opacity: 0.95, dashArray: '10 6' })
-        .bindPopup(`<h3>${esc(P.principal.nombre)}</h3><p>${esc(P.principal.nota)}</p><p>UNEN B y UNEN A: posiciones UNEN ${esc(boyasFecha)}.</p>${nota}`).addTo(capaRuta);
+        .bindPopup(`<h3>Paso seguro Mitre</h3><p>Km 25,2 → UNEN B → UNEN A</p>${nota}`).addTo(capaRuta);
       L.circleMarker(P.principal.km252, { pane: 'ruta', radius: 5, color: '#ff7a00', fillColor: '#fff', fillOpacity: 1, weight: 2 })
-        .bindPopup(`<h3>Cruce Km 25,2</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(P.principal.km252[0]))}<br>${esc(fmtLon(P.principal.km252[1]))}</p><p>~50 m al SW de la boya verde del Km 25,2 (Club Piedrabuena 2026).</p>`).addTo(capaRuta);
+        .bindPopup(`<h3>Cruce Km 25,2</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(P.principal.km252[0]))}<br>${esc(fmtLon(P.principal.km252[1]))}</p>`).addTo(capaRuta);
       etiquetaPaso([(b.lat + a.lat) / 2, (b.lon + a.lon) / 2], 'Paso seguro Mitre (Km 25,2)');
     }
     const al = P.alternativa;
     L.polyline(al.cruce, { pane: 'ruta', color: '#ff7a00', weight: 4, opacity: 0.85, dashArray: '4 6' })
-      .bindPopup(`<h3>${esc(al.nombre)}</h3><p>${esc(al.nota)}</p>${nota}`).addTo(capaRuta);
+      .bindPopup(`<h3>Cruce alternativo Km 14</h3>${nota}`).addTo(capaRuta);
     etiquetaPaso(al.cruce[1], 'Cruce alternativo Km 14');
   }).catch(() => {});
 }
@@ -373,7 +373,7 @@ function actualizarPos(p) {
   $('#posTxt').innerHTML = `${esc(fmtLat(la))}<br>${esc(fmtLon(lo))}`;
   $('#sog').textContent = kn != null ? num(kn, 1) : '—';
   $('#cog').textContent = navegando ? fmtRumbo(cog) : '—';
-  $('#posSub').textContent = `± ${Math.round(accuracy)} m` + (navegando ? '' : ' · quieto: sin línea de rumbo');
+  $('#posSub').textContent = `± ${Math.round(accuracy)} m`;
   if (orient === 'rumbo' && navegando && mapa.setBearing) { mapa.setBearing(360 - cog); marcaBarco.setIcon(iconoBarco(cog)); }
   if (seguir) mapa.panTo(posGps, { animate: true });
   const ais = $('#linkAis'); if (ais) ais.href = `https://www.marinetraffic.com/en/ais/home/centerx:${lo.toFixed(3)}/centery:${la.toFixed(3)}/zoom:14`;
@@ -432,7 +432,7 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tab').forEach(x => { x.classList.toggle('on', x === t); x.setAttribute('aria-selected', x === t); });
   document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === 'v-' + t.dataset.t));
   guardar('tab', t.dataset.t);
-  if (t.dataset.t === 'viento') cargarViento();
+  
 });
 
 
@@ -465,10 +465,10 @@ function pintarSemaforo() {
   let prox = '';
   if (est && est.futuro.length) {
     const ok = est.futuro.find(x => DETERMINANTE + x[1] - c >= 0.5), malo = est.futuro.find(x => DETERMINANTE + x[1] - c < 0.2);
-    if (margen < 0.5 && ok) prox = ` Estimado: margen bueno desde las ${hora(ok[0])}.`;
-    else if (margen >= 0.2 && malo) prox = ` Estimado: deja de dar a las ${hora(malo[0])}.`;
+    if (margen < 0.5 && ok) prox = ` · da desde las ${hora(ok[0])}`;
+    else if (margen >= 0.2 && malo) prox = ` · deja de dar ${hora(malo[0])}`;
   }
-  det.textContent = `Agua en el paso ≈ ${num(agua)} m · bajo la quilla ≈ ${num(margen)} m (San Fernando ${num(u[1])} m a las ${hora(u[0])}).${prox}`;
+  det.textContent = `Bajo la quilla ${num(margen)} m · San Fernando ${num(u[1])} m (${hora(u[0])})${prox}`;
   curva(sf, est);
 }
 
@@ -488,7 +488,6 @@ function curva(est, e) {
     for (let v = Math.ceil(lo * 2) / 2; v <= hi; v += 0.5) s += `<text x="2" y="${Y(v) + 4}" font-size="11" fill="currentColor">${num(v, 1)}</text><line x1="34" x2="${W - 10}" y1="${Y(v)}" y2="${Y(v)}" stroke="currentColor" opacity=".12"/>`;
     s += linea(ast, '#8aa0ad', 'stroke-dasharray="2 3"') + linea(obs, '#0a6fb0') + linea(fut, '#c2188f', 'stroke-dasharray="6 4"');
     const ahora = ultimo(obs); if (ahora) s += `<circle cx="${X(ahora[0])}" cy="${Y(ahora[1])}" r="4" fill="#0a6fb0"/>`;
-    if (W > 300) s += `<text x="${W - 12}" y="${H - 4}" font-size="11" text-anchor="end" fill="currentColor">azul medida · gris marea astronómica · magenta estimación</text>`;
     caja.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Altura en San Fernando">${s}</svg>`;
   };
   if (!caja._ro) { caja._ro = new ResizeObserver(dibujar); caja._ro.observe(caja); }
@@ -507,17 +506,17 @@ function tarjeta(s) {
     const p = pref['San Isidro'], sf = m.SFER, u = sf && ultimo(sf.observada), prev = sf && sf.observada[sf.observada.length - 2];
     alt = u ? num(u[1]) + ' m' : '—';
     if (u && prev) tend = u[1] > prev[1] ? '<span class="tend sube">▲ crece</span>' : u[1] < prev[1] ? '<span class="tend baja">▼ baja</span>' : '<span class="tend">= estable</span>';
-    det = `San Fernando (SHN, cada hora)${u ? ' a las ' + hora(u[0]) : ''}.`;
-    if (p) { det += ` Regla Prefectura San Isidro: ${num(p.altura)} m, ${esc(p.estado)} (${esc(p.fecha)}).`;
+    det = `San Fernando ${u ? hora(u[0]) : ''}`;
+    if (p) { det += ` · Pref. ${num(p.altura)} m ${esc(p.estado)}`;
       chips = p.altura >= p.evacuacion ? '<span class="chip evac">Evacuación</span>' : p.altura >= p.alerta ? '<span class="chip alerta">Alerta</span>' : ''; }
-    const e = sf && estimacion(sf); if (e) det += ` Sobre la marea astronómica: ${e.dif >= 0 ? '+' : ''}${num(e.dif)} m.`;
+    const e = sf && estimacion(sf); if (e) det += ` · viento ${e.dif >= 0 ? '+' : ''}${num(e.dif)} m`;
   } else {
     const est = m[s.id], u = est && ultimo(est.observada), prev = est && est.observada[est.observada.length - 2];
     alt = u ? num(u[1]) + ' m' : '—';
     if (u && prev) tend = u[1] > prev[1] ? '<span class="tend sube">▲ crece</span>' : u[1] < prev[1] ? '<span class="tend baja">▼ baja</span>' : '<span class="tend">= estable</span>';
     const e = est && estimacion(est);
-    det = u ? `SHN a las ${hora(u[0])}.` : 'Sin lectura reciente.';
-    if (e) det += ` Sobre la marea astronómica: ${e.dif >= 0 ? '+' : ''}${num(e.dif)} m${e.dif >= 0.3 ? ' (crecida por viento)' : e.dif <= -0.3 ? ' (bajante por viento)' : ''}.`;
+    det = u ? hora(u[0]) : 'sin lectura';
+    if (e) det += ` · viento ${e.dif >= 0 ? '+' : ''}${num(e.dif)} m`;
     if (s.id === 'BSAS') { const p = pref['Buenos Aires']; if (p) chips = p.altura >= p.evacuacion ? '<span class="chip evac">Evacuación</span>' : p.altura >= p.alerta ? '<span class="chip alerta">Alerta</span>' : ''; }
   }
   const v = vientoAhora[s.viento];
@@ -530,11 +529,9 @@ function pintarSituacion() {
   const r = sit.radioavisos || {};
   const pb = r.pleamar_bajamar || {};
   const filas = ['San Fernando', 'Buenos Aires'].filter(p => pb[p]).map(p => `<tr><th class="r">${esc(p)}</th>${pb[p].map(x => `<td>${esc(x.estado)}<br><strong>${esc(x.hora)}</strong> · ${num(x.altura)} m</td>`).join('')}</tr>`).join('');
-  $('#pronostico').innerHTML = `<h2>Pronóstico mareológico SHN</h2><p class="nota">${esc(r.pronostico_valido || '')}</p>`
-    + (r.pronostico_interior ? `<p><strong>Río de la Plata interior:</strong> ${esc(r.pronostico_interior.toLowerCase())}.</p>` : '')
-    + (r.observaciones ? `<p>${esc(r.observaciones.toLowerCase())}.</p>` : '')
-    + (filas ? `<div class="scroll"><table class="vt">${filas}</table></div>` : '')
-    + (r.olas_costanero_km17 && r.olas_costanero_km17.length ? `<p><strong>Olas Canal Costanero Km 17:</strong> ${r.olas_costanero_km17.map(o => `${esc(o.fecha)} mañana ${num(o.manana.alt, 1)} m ${esc(o.manana.dir)}, tarde ${num(o.tarde.alt, 1)} m ${esc(o.tarde.dir)}`).join(' · ')}</p>` : '');
+  const ol = (r.olas_costanero_km17 || [])[0];
+  $('#pronostico').innerHTML = (filas ? `<h2>Pleamar / bajamar</h2><div class="scroll"><table class="vt">${filas}</table></div>` : '')
+    + (ol ? `<p><strong>Olas Costanero:</strong> ${num(Math.max(ol.manana.alt, ol.tarde.alt), 1)} m ${esc(ol.manana.dir)}</p>` : '');
   const edadMin = (Date.now() - new Date(sit.generado)) / 60000, act = $('#actualizado');
   act.textContent = 'datos ' + new Date(sit.generado).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
     + (edadMin > 90 ? ` · ATENCIÓN: datos de hace ${edadMin > 120 ? Math.round(edadMin / 60) + ' h' : Math.round(edadMin) + ' min'}` : '');
@@ -545,11 +542,10 @@ function pintarSituacion() {
 function pintarAvisos() {
   const r = (sit && sit.radioavisos) || {};
   const av = r.avisos_costanero || [];
-  let grupo = '', h = '<h2>Balizamiento Canal Costanero (SHN)</h2>';
+  let grupo = '', h = '<h2>Balizamiento Costanero</h2>';
   for (const l of av) { if (/:$/.test(l)) { grupo = l.replace(':', ''); continue; } h += `<div class="aviso ${/FALTA|AVERIADA/.test(grupo) ? 'falta' : ''}"><strong>${esc(grupo.toLowerCase())}:</strong> ${esc(l)}</div>`; }
-  if (!av.length) h += '<p class="nota">Sin novedades publicadas.</p>';
-  h += `<p class="nota">Radioavisos vigentes SHN, actualizado ${esc(r.actualizado_shn || '—')}. Verificar siempre por VHF / NAVTEX.</p>`;
-  if (sit && sit.errores && sit.errores.length) h += `<div class="aviso">No se pudo actualizar: ${esc(sit.errores.join(' · '))}. Se muestra lo último disponible.</div>`;
+  if (!av.length) h += '<p>Sin novedades.</p>';
+
   $('#avisos').innerHTML = h;
 }
 function cargarSituacion() {
@@ -708,12 +704,12 @@ function pintarAlertas() {
   const A = alertasDelDia(), clave = hoyISO() + '|' + A.map(a => a.t).join('|');
   // pestaña Alertas: siempre con las del día, aunque se cierre el cartel
   const lista = $('#listaAlertas'), cuenta = $('#cuentaAlertas');
-  if (lista) lista.innerHTML = A.length ? A.map(a => `<div class="alerta-item ${a.n === 'ambar' ? 'ambar' : ''}">${esc(a.t)}</div>`).join('') : '<p>Sin alertas para lo que queda de hoy.</p>';
+  if (lista) lista.innerHTML = A.length ? A.map(a => `<div class="alerta-item ${a.n === 'ambar' ? 'ambar' : ''}">${esc(a.t)}</div>`).join('') : '<p>Sin alertas hoy.</p>';
   if (cuenta) { cuenta.hidden = !A.length; cuenta.textContent = A.length; cuenta.className = 'cuenta' + (A.some(a => a.n === 'rojo') ? '' : ' ambar'); }
   if (!A.length || leer('alertaCerrada', '') === clave) { caja.hidden = true; return; }
   const nuevo = caja.dataset.clave !== clave; caja.dataset.clave = clave;
   caja.className = 'alertas ' + (A.some(a => a.n === 'rojo') ? 'rojo' : 'ambar');
-  caja.innerHTML = `<button class="cerrar" id="cerrarAlerta" aria-label="Cerrar aviso">×</button><strong>Atención hoy</strong><ul>${A.map(a => `<li>${esc(a.t)}</li>`).join('')}</ul><button class="ver" id="verAlertas">Siguen en la pestaña Alertas</button>`;
+  caja.innerHTML = `<button class="cerrar" id="cerrarAlerta" aria-label="Cerrar aviso">×</button><strong>Atención hoy</strong><ul>${A.map(a => `<li>${esc(a.t)}</li>`).join('')}</ul><button class="ver" id="verAlertas">Ver en Alertas</button>`;
   caja.hidden = false;
   $('#cerrarAlerta').onclick = () => { guardar('alertaCerrada', clave); caja.hidden = true; };
   $('#verAlertas').onclick = () => { abrirPanel(true); document.querySelector('.tab[data-t="alertas"]').click(); };
@@ -749,11 +745,11 @@ function abrirViento() {
   const ref = posGps || mapa.getCenter();
   let mejor = null; for (const [k, p] of Object.entries(PUNTOS)) { const d = distM(ref, L.latLng(p.lat, p.lon)); if (!mejor || d < mejor[1]) mejor = [k, d]; }
   if (mejor) { sel.value = mejor[0]; guardar('puntoViento', mejor[0]); }
-  abrirPanel(true);
-  document.querySelectorAll('.tab').forEach(x => { x.classList.remove('on'); x.setAttribute('aria-selected', false); });
-  document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === 'v-viento'));
+  abrirPanel(false);
+  $('#hojaViento').hidden = false;
   cargarViento(true);
 }
+$('#cerrarViento').onclick = () => { $('#hojaViento').hidden = true; };
 $('#rosaViento').onclick = abrirViento;
 $('#rosaViento').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirViento(); } };
 mapa.on('moveend', () => { clearTimeout(actualizarRosa._t); actualizarRosa._t = setTimeout(() => actualizarRosa(false), 1500); });
@@ -808,7 +804,7 @@ function listarRecorridos() {
   const lista = leer('recorridos', []);
   caja.innerHTML = (grabando ? `<div class="reco"><h3>Grabando ahora</h3><p>${trackActual.length} puntos · ${num(distTrack(trackActual) / 1852, 2)} MN</p></div>` : '')
     + (lista.length ? lista.map((r, i) => `<div class="reco"><h3>${esc(fmtFecha(r.inicio))}</h3><p>${num(r.dist / 1852, 2)} MN · ${fmtDur(r.fin - r.inicio)} · vel. media ${num(r.dist / 1852 / Math.max((r.fin - r.inicio) / 3600000, 0.01), 1)} kn${r.vmax ? ` · máx ${num(r.vmax, 1)} kn` : ''}</p>
-      <div class="btns"><button data-ver="${i}">Ver en el mapa</button><button data-gpx="${i}">Descargar GPX</button><button class="peligro" data-borrar="${i}">Borrar</button></div></div>`).join('') : '<p>Todavía no hay recorridos guardados.</p>');
+      <div class="btns"><button data-ver="${i}">Ver en el mapa</button><button data-gpx="${i}">Descargar GPX</button><button class="peligro" data-borrar="${i}">Borrar</button></div></div>`).join('') : '<p>Sin recorridos. Grabá con ● en el mapa.</p>');
   caja.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => {
     const r = lista[+b.dataset.ver]; if (recorridoVisto) recorridoVisto.remove();
     recorridoVisto = L.polyline(r.puntos.map(p => [p[0], p[1]]), { pane: 'ruta', color: '#00d5ff', weight: 4, dashArray: '2 6', opacity: 0.95 }).bindPopup(`<h3>Recorrido ${esc(fmtFecha(r.inicio))}</h3><p>${num(r.dist / 1852, 2)} MN · ${fmtDur(r.fin - r.inicio)}</p>`).addTo(capaTrack);
