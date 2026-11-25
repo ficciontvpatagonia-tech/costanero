@@ -152,7 +152,7 @@ fetch('datos/boyas.json').then(r => r.json()).then(d => {
   boyas = d.boyas.filter(b => typeof b.lat === 'number' && typeof b.lon === 'number');
   for (const b of boyas) {
     const tp = tipoBoya(b);
-    L.marker([b.lat, b.lon], { icon: iconoBoya(tp), title: b.name, keyboard: true }).bindPopup(() => popupBoya(b, tp)).addTo(capaBoyas);
+    L.marker([b.lat, b.lon], { icon: iconoBoya(tp), title: b.name, keyboard: true }).on('click', e => { L.DomEvent.stopPropagation(e); irA(b.lat, b.lon, nombreLindo(b.name.replace(/\s*\((Roja|Verde)\)/i, ''))); }).addTo(capaBoyas);
     const destacada = DESTACADAS.includes(b.name.toUpperCase());
     L.marker([b.lat, b.lon], { pane: 'etiquetas', interactive: false,
       icon: L.divIcon({ className: '', html: `<div class="${destacada ? 'et-boya et-destacada' : 'et-boya'}" style="transform:translate(12px,-22px)">${esc(destacada ? nombreLindo(b.name) : b.name.replace(/\s*\((Roja|Verde)\)/i, ''))}</div>`, iconSize: [0, 0] }) }).addTo(destacada ? etDestacadas : etBoyas);
@@ -272,7 +272,7 @@ const iconoClub = L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11
 fetch('datos/clubes.json').then(r => r.json()).then(d => {
   for (const c of d.clubes) {
     const p = L.latLng(c.lat, c.lon);
-    L.marker(p, { icon: iconoClub, title: c.n }).bindPopup(() => `<h3>${esc(c.n)}</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(c.lat))}<br>${esc(fmtLon(c.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(distM(posGps, p))}</p>` : ''}`).addTo(capaClubes);
+    L.marker(p, { icon: iconoClub, title: c.n }).on('click', e => { L.DomEvent.stopPropagation(e); irA(c.lat, c.lon, c.n); }).addTo(capaClubes);
     L.marker(p, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-club" style="transform:translate(14px,-50%)">${esc(c.n)}</div>`, iconSize: [0, 0] }) }).addTo(etClubes);
   }
   clubesSegunZoom();
@@ -284,7 +284,7 @@ mapa.on('zoomend', clubesSegunZoom);
 fetch('datos/referencias.json').then(r => r.json()).then(d => {
   for (const r of d.referencias) {
     const p = L.latLng(r.lat, r.lon);
-    L.marker(p, { icon: iconoBoya({ k: r.tipo || 'peligro' }), title: r.n }).bindPopup(() => `<h3>${esc(r.n)}</h3><p>${esc(r.nota)}</p><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(r.lat))}<br>${esc(fmtLon(r.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(distM(posGps, p))}</p>` : ''}`).addTo(capaBoyas);
+    L.marker(p, { icon: iconoBoya({ k: r.tipo || 'peligro' }), title: r.n }).on('click', e => { L.DomEvent.stopPropagation(e); irA(r.lat, r.lon, r.n); }).addTo(capaBoyas);
     L.marker(p, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya et-destacada" style="transform:translate(12px,-22px)">${esc(r.n)}</div>`, iconSize: [0, 0] }) }).addTo(etDestacadas);
   }
 }).catch(() => {});
@@ -371,6 +371,7 @@ function actualizarPos(p) {
     else { lineaRumbo.setLatLngs([posGps, fin]).addTo(mapa); finRumbo.setLatLng(fin).addTo(mapa); }
   } else if (lineaRumbo) { lineaRumbo.remove(); finRumbo.remove(); }
   $('#posTxt').innerHTML = `${esc(fmtLat(la))}<br>${esc(fmtLon(lo))}`;
+  ultimoKn = kn; dibujarDestino();
   $('#sog').textContent = kn != null ? num(kn, 1) : '—';
   $('#cog').textContent = navegando ? fmtRumbo(cog) : '—';
   $('#posSub').textContent = `± ${Math.round(accuracy)} m`;
@@ -409,18 +410,26 @@ mapa.on('dragstart', () => { if (seguir) { seguir = false; btnSeguir.setAttribut
 if (leer('gpsUsado', false)) iniciarGps(false);
 $('#btnGps').addEventListener('click', () => guardar('gpsUsado', true));
 
-/* ---------- Toque en el mapa: coordenadas, rumbo y distancia ---------- */
-let marcaToque = null;
-mapa.on('click', e => {
-  const p = e.latlng;
-  if (!marcaToque) marcaToque = L.circleMarker(p, { radius: 6, color: '#000', fillColor: '#ffd400', fillOpacity: 1, weight: 2 }).addTo(mapa); else marcaToque.setLatLng(p);
-  $('#toqueTxt').innerHTML = `${esc(fmtLat(p.lat))}<br>${esc(fmtLon(p.lng))}`;
-  const zc = profCarta(p.lat, p.lng), hr = alturaRio(p.lat);
-  const prf = zc === null ? '' : ` · Prof. ≈ ${num(zc + hr, 1)} m ahora (carta ${num(zc, 1)} + río ${num(hr, 1)})`;
-  $('#toqueSub').textContent = (posGps ? `Desde tu posición: ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(distM(posGps, p))}` : 'Activá el GPS para ver rumbo y distancia') + prf;
-  $('#hudToque').hidden = false;
-});
-$('#cerrarToque').onclick = () => { $('#hudToque').hidden = true; marcaToque && marcaToque.remove(); marcaToque = null; };
+/* ---------- Ir a: tocar una referencia dibuja la línea desde el barco con rumbo, distancia y tiempo ---------- */
+let objetivo = null, lineaDest = null, marcaDest = null, ultimoKn = null;
+function irA(lat, lon, nombre) { objetivo = { p: L.latLng(lat, lon), n: nombre }; dibujarDestino(); }
+function borrarDestino() { objetivo = null; lineaDest && lineaDest.remove(); marcaDest && marcaDest.remove(); lineaDest = marcaDest = null; }
+function dibujarDestino() {
+  if (!objetivo) return;
+  const p = objetivo.p;
+  let txt = objetivo.n;
+  if (posGps) {
+    const d = distM(posGps, p);
+    txt += ` · ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(d)}`;
+    if (ultimoKn && ultimoKn >= 0.5) { const min = Math.round(d / 1852 / ultimoKn * 60); txt += ` · ${min < 60 ? min + ' min' : Math.floor(min / 60) + ' h ' + (min % 60) + ' min'}`; }
+    if (!lineaDest) lineaDest = L.polyline([posGps, p], { pane: 'ruta', color: '#ffd400', weight: 3, dashArray: '8 6', interactive: false }).addTo(mapa);
+    else lineaDest.setLatLngs([posGps, p]).addTo(mapa);
+  } else { txt += ' · activá ◎ GPS'; lineaDest && lineaDest.remove(); lineaDest = null; }
+  const html = `<div class="et-boya et-destacada et-destino" style="transform:translate(14px,8px)">${esc(txt)}</div>`;
+  if (!marcaDest) marcaDest = L.marker(p, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html, iconSize: [0, 0] }) }).addTo(mapa);
+  else marcaDest.setLatLng(p).setIcon(L.divIcon({ className: '', html, iconSize: [0, 0] }));
+}
+mapa.on('click', borrarDestino);
 
 /* ---------- Panel ---------- */
 const panel = $('#panel');
