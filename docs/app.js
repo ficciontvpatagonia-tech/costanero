@@ -831,18 +831,26 @@ pintarRec(); listarRecorridos();
 // Restaurar la última pestaña (al final: todo lo que usa ya está definido)
 { const t = document.querySelector(`.tab[data-t="${leer('tab', 'sit')}"]`) || document.querySelector('.tab[data-t="sit"]'); if (t) t.click(); }
 
-/* ---------- Botón "Instalar app": solo si el navegador ofrece instalarla y no está instalada ---------- */
+/* ---------- Instalar app: solo en celular, dentro del panel ☰ ---------- */
 let pedidoInstalar = null;
-const btnInstalar = $('#btnInstalar');
+const esMovil = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 900;
 const instalada = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedidoInstalar = e; if (!instalada()) btnInstalar.hidden = false; });
-addEventListener('appinstalled', () => { btnInstalar.hidden = true; pedidoInstalar = null; });
-btnInstalar.onclick = async () => {
+function pintarInstalar() {
+  const zona = $('#zonaInstalar'); if (!zona) return;
+  const mostrar = esMovil && !instalada();
+  zona.hidden = !mostrar;
+  $('#btnInstalar').hidden = !pedidoInstalar;
+  $('#txtInstalar').hidden = !!pedidoInstalar;
+}
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedidoInstalar = e; pintarInstalar(); });
+addEventListener('appinstalled', () => { pedidoInstalar = null; pintarInstalar(); });
+$('#btnInstalar').onclick = async () => {
   if (!pedidoInstalar) return;
   pedidoInstalar.prompt();
   try { await pedidoInstalar.userChoice; } catch (e) {}
-  pedidoInstalar = null; btnInstalar.hidden = true;
+  pedidoInstalar = null; pintarInstalar();
 };
+pintarInstalar();
 
 /* ---------- Offline ---------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
