@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=22">
+<link rel="stylesheet" href="estilo.css?v=25">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -37,6 +37,8 @@
   <button class="btn-r btn-orient" id="btnPantalla" title="Mantener la pantalla encendida" aria-label="Mantener la pantalla encendida" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg><small id="pantTxt">pantalla</small></button>
   <button class="btn-r" id="btnPanel" title="Situación del río" aria-label="Abrir panel">☰</button>
 </div>
+
+<div class="alertas" id="alertas" role="alert" hidden></div>
 
 <div class="hud hud-toque" id="hudToque" hidden>
   <button class="cerrar" id="cerrarToque" aria-label="Cerrar">×</button>
@@ -111,6 +113,8 @@
         <li><i style="background:repeating-linear-gradient(90deg,#d7262e 0 8px,transparent 8px 12px)"></i><i style="background:repeating-linear-gradient(90deg,#14953d 0 8px,transparent 8px 12px)"></i>Límites del canal troncal Emilio Mitre / Paraná de las Palmas (Vías Navegables)</li>
         <li><i style="background:#0b2a3c;border-radius:50%"></i>Clubes y amarras (OpenStreetMap)</li>
       </ul>
+      <h2>Avisos en pantalla (solo lo que queda de hoy)</h2>
+      <p>Ráfagas de 30 kn o más · tormentas eléctricas (modelos ECMWF/GFS) · aviso a muy corto plazo del SMN para la zona · olas de 1 m o más en el Canal Costanero (SHN) · crecida: altura o pleamar de hoy en el nivel de alerta de Prefectura · bajante: altura o bajamar de hoy de 0,30 m o menos, o 0,80 m por debajo de la marea normal.</p>
       <p class="nota">Balizamiento IALA región B: entrando desde el río, roja a estribor y verde a babor.</p>
       <h2>Fuentes</h2>
       <ul class="fuentes">
@@ -118,7 +122,8 @@
         <li>Alturas en Tigre, San Fernando, San Isidro y Buenos Aires: <a href="https://contenidosweb.prefecturanaval.gob.ar/alturas/">Prefectura Naval Argentina</a></li>
         <li>Balizamiento Canal Costanero y Delta: <a href="https://unen.org.ar/">UNEN</a></li>
         <li>Carta base: SHN H‑118 · Ríos: © colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></li>
-        <li>Viento: <a href="https://open-meteo.com/">Open‑Meteo</a> (ECMWF, GFS)</li>
+        <li>Viento y tormentas: <a href="https://open-meteo.com/">Open‑Meteo</a> (ECMWF, GFS)</li>
+        <li>Avisos a muy corto plazo: <a href="https://www.smn.gob.ar/">Servicio Meteorológico Nacional</a> (CC BY 4.0)</li>
         <li>Límites de canales troncales: <a href="https://viasnavegables.com.ar/servicios/batimetria.php">Vías Navegables</a> (AGP)</li>
         <li>Tráfico de barcos: <a id="linkAis" href="https://www.marinetraffic.com/en/ais/home/centerx:-58.524/centery:-34.433/zoom:13">MarineTraffic</a> (sitio externo)</li>
       </ul>
@@ -128,6 +133,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=22"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>

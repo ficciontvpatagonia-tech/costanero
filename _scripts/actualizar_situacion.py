@@ -101,10 +101,30 @@ def prefectura():
     return out
 
 
+ZONAS_SMN = ("CAPITAL FEDERAL", "CIUDAD AUTONOMA", "CIUDAD AUTÓNOMA", "CABA", "SAN ISIDRO", "TIGRE", "SAN FERNANDO",
+             "VICENTE LOPEZ", "VICENTE LÓPEZ", "ESCOBAR", "CAMPANA", "ZARATE", "ZÁRATE", "DELTA", "ISLAS", "RIO DE LA PLATA",
+             "RÍO DE LA PLATA", "AVELLANEDA", "QUILMES", "AMBA", "CONURBANO", "GRAN BUENOS AIRES")
+
+
+def smn_avisos():
+    """Avisos meteorológicos a muy corto plazo del SMN (CAP/RSS, CC BY 4.0). Solo los que nombran nuestra zona."""
+    t = bajar("https://ssl.smn.gob.ar/feeds/CAP/avisocortoplazo/rss_acpCAP.xml")
+    out = []
+    for item in re.findall(r"<item>(.*?)</item>", t, re.S):
+        g = lambda tag: html.unescape(re.sub(r"<!\[CDATA\[|\]\]>", "", (re.search(rf"<{tag}>(.*?)</{tag}>", item, re.S) or [None, ""])[1])).strip()
+        titulo, desc = g("title"), re.sub(r"<[^>]+>", " ", g("description"))
+        if "NO SE HAN EMITIDO" in desc.upper():
+            continue
+        texto = (titulo + " " + desc).upper()
+        out.append({"titulo": titulo, "texto": re.sub(r"\s+", " ", desc).strip()[:400], "fecha": g("pubDate"),
+                    "link": g("link"), "zona": any(z in texto for z in ZONAS_SMN)})
+    return out
+
+
 def main():
     previo = json.loads(SALIDA.read_text(encoding="utf-8")) if SALIDA.exists() else {}
     sit = {"generado": datetime.datetime.now(AR).isoformat(timespec="minutes"), "errores": []}
-    for clave, fn in (("mareografos", mareografos), ("radioavisos", radioavisos), ("prefectura", prefectura)):
+    for clave, fn in (("mareografos", mareografos), ("radioavisos", radioavisos), ("prefectura", prefectura), ("smn", smn_avisos)):
         try:
             sit[clave] = fn()
             sit[clave + "_ok"] = sit["generado"]

@@ -39,6 +39,10 @@ button{cursor:pointer}
 .hud-s{font-size:13px;color:#cfe2ee;font-variant-numeric:tabular-nums}
 .hud-rumbo{display:flex;align-items:center;gap:6px;font-size:13px;color:#9fc3d8;margin-top:4px}
 .hud-rumbo select{background:#123a52;color:#fff;border:1px solid #2c6a8c;border-radius:6px;padding:4px 6px;font-size:14px;min-height:32px}
+.alertas{position:fixed;z-index:700;left:50%;transform:translateX(-50%);top:max(12px,env(safe-area-inset-top));width:min(560px,calc(100% - 24px));padding:12px 44px 12px 14px;border-radius:12px;color:#fff;box-shadow:0 8px 24px #0007;font-size:15px}
+.alertas.rojo{background:#b3141c;border:2px solid #ffd2d2}.alertas.ambar{background:#b86a00;border:2px solid #ffe2b0}
+.alertas strong{font:700 20px/1.1 "Barlow Condensed",sans-serif;display:block}
+.alertas ul{margin:6px 0 0;padding-left:18px}.alertas li{margin:3px 0}
 .hud-toque{left:max(12px,env(safe-area-inset-left));top:104px;min-width:220px;padding-right:40px}
 .cerrar{position:absolute;right:6px;top:6px;width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1}
 .botones{position:fixed;z-index:500;right:max(12px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));display:flex;flex-direction:column;gap:10px}

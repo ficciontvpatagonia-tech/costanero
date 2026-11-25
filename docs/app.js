@@ -534,7 +534,7 @@ function pintarAvisos() {
   $('#avisos').innerHTML = h;
 }
 function cargarSituacion() {
-  fetch('datos/situacion.json', { cache: 'no-cache' }).then(r => r.json()).then(d => { sit = d; pintarSituacion(); dibujarNoPasa(); })
+  fetch('datos/situacion.json', { cache: 'no-cache' }).then(r => r.json()).then(d => { sit = d; pintarSituacion(); dibujarNoPasa(); pintarAlertas(); })
     .catch(() => { $('#actualizado').textContent = 'sin conexión'; });
 }
 cargarSituacion(); setInterval(cargarSituacion, 10 * 60 * 1000);
@@ -554,8 +554,9 @@ sel.onchange = () => { guardar('puntoViento', sel.value); cargarViento(true); };
 const flecha = d => `<span class="flecha" style="transform:rotate(${(d + 180) % 360}deg)" aria-hidden="true">↑</span>`;
 const cardinal = d => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(d / 22.5) % 16];
 const colorViento = kn => kn < 5 ? '#e8f4fb' : kn < 10 ? '#a8e0c4' : kn < 15 ? '#5fd07a' : kn < 20 ? '#f4e04d' : kn < 25 ? '#f6a33a' : kn < 30 ? '#ef5a3a' : '#c2188f';
-const urlViento = p => `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m&wind_speed_unit=kn&timezone=America%2FArgentina%2FBuenos_Aires&forecast_days=3&models=ecmwf_ifs025,gfs_seamless`;
-const cacheViento = {};
+const urlViento = p => `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,weather_code&wind_speed_unit=kn&timezone=America%2FArgentina%2FBuenos_Aires&forecast_days=3&models=ecmwf_ifs025,gfs_seamless`;
+const cacheViento = {}; // v2: incluye weather_code
+Object.keys(PUNTOS).forEach(k => { const v = leer('viento_' + k, null); if (v && !v.d?.hourly?.weather_code_ecmwf_ifs025 && !v.d?.hourly?.weather_code_gfs_seamless) guardar('viento_' + k, null); });
 async function datosViento(k) {
   if (cacheViento[k] && Date.now() - cacheViento[k].t < 30 * 60 * 1000) return cacheViento[k].d;
   const d = await fetch(urlViento(PUNTOS[k])).then(r => r.json());
@@ -593,7 +594,7 @@ function pintarTablaViento(d) {
   $('#tablaViento').innerHTML = `<table class="vt">${cab1}</tr>${cab2}<tr><th class="r" colspan="1"><strong>ECMWF</strong></th></tr>${fila('viento', 'ecmwf_ifs025')}<tr><th class="r"><strong>GFS</strong></th></tr>${fila('viento', 'gfs_seamless')}</table>`;
 }
 // Viento actual para las tarjetas de situación
-Promise.allSettled(['si', 'bsas', 'pnor'].map(k => datosViento(k).then(d => vientoActual(k, d)))).then(() => sit && pintarSituacion());
+Promise.allSettled(['si', 'bsas', 'pnor'].map(k => datosViento(k).then(d => vientoActual(k, d)))).then(() => { sit && pintarSituacion(); pintarAlertas(); });
 
 /* Pantalla siempre encendida (Screen Wake Lock): se vuelve a pedir al volver a la app */
 let wake = null, quiereWake = leer('pantalla', false);
@@ -611,6 +612,59 @@ btnPant.onclick = async () => {
 document.addEventListener('visibilitychange', () => { if (quiereWake && document.visibilityState === 'visible' && !wake) pedirWake(); });
 if (quiereWake) pedirWake();
 aplicarOrient();
+
+/* ---------- Alertas del día (solo lo que queda de HOY) ---------- */
+const UMBRAL_RAFAGA = 30, UMBRAL_OLA = 1.0, UMBRAL_BAJANTE = 0.30, UMBRAL_SOBREELEV = -0.80;
+const hoyISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+function alertasDelDia() {
+  const A = [], ahora = new Date(), hoy = hoyISO();
+  const [yy, mm, dd] = hoy.split('-');
+  // 1-2) viento y tormentas (Open-Meteo, horas que quedan de hoy; el modelo que dé más)
+  for (const k of ['si', 'bsas', 'pnor']) {
+    const h = cacheViento[k]?.d?.hourly; if (!h) continue;
+    let max = 0, hMax = null, torm = null;
+    h.time.forEach((t, i) => {
+      if (!t.startsWith(hoy) || new Date(t) < new Date(ahora - 3600e3)) return;
+      const r = Math.max(h.wind_gusts_10m_ecmwf_ifs025?.[i] ?? 0, h.wind_gusts_10m_gfs_seamless?.[i] ?? 0);
+      if (r > max) { max = r; hMax = t; }
+      const wc = [h.weather_code_ecmwf_ifs025?.[i], h.weather_code_gfs_seamless?.[i]];
+      if (!torm && wc.some(c => c >= 95)) torm = t;
+    });
+    if (max >= UMBRAL_RAFAGA) A.push({ n: 'rojo', t: `Ráfagas de hasta ${Math.round(max)} kn hoy (${PUNTOS[k].n}, ~${hora(hMax)} h)` });
+    if (torm) A.push({ n: 'rojo', t: `Tormentas eléctricas previstas hoy desde las ${hora(torm)} h (${PUNTOS[k].n})` });
+  }
+  // 3) avisos a muy corto plazo del SMN que nombran la zona
+  for (const a of (sit?.smn || [])) if (a.zona) A.push({ n: 'rojo', t: `SMN: ${a.titulo}. ${a.texto}` });
+  // 4) olas Canal Costanero Km 17 (pronóstico SHN de hoy)
+  const ol = (sit?.radioavisos?.olas_costanero_km17 || []).find(o => o.fecha === `${dd}-${mm}-${yy.slice(2)}`);
+  if (ol) { const m = Math.max(ol.manana.alt, ol.tarde.alt); if (m >= UMBRAL_OLA) A.push({ n: 'ambar', t: `Olas de ${num(m, 1)} m previstas hoy en el Canal Costanero (Km 17)` }); }
+  // 5-6) crecidas y bajantes extremas (medido ahora y pleamar/bajamar de hoy)
+  const pref = sit?.prefectura || {}, pb = sit?.radioavisos?.pleamar_bajamar || {}, m = sit?.mareografos || {};
+  for (const [cod, nom, lvl] of [['SFER', 'San Fernando', pref['San Fernando']?.alerta ?? 3.0], ['BSAS', 'Buenos Aires', pref['Buenos Aires']?.alerta ?? 3.3]]) {
+    const u = m[cod] && ultimo(m[cod].observada), e = m[cod] && estimacion(m[cod]);
+    if (u && u[1] >= lvl) A.push({ n: 'rojo', t: `Crecida: ${nom} ${num(u[1])} m (alerta Prefectura ${num(lvl)} m)` });
+    if (u && u[1] <= UMBRAL_BAJANTE) A.push({ n: 'rojo', t: `Bajante extrema: ${nom} ${num(u[1])} m` });
+    if (e && e.dif <= UMBRAL_SOBREELEV) A.push({ n: 'ambar', t: `Bajante por viento: ${nom} ${num(-e.dif)} m por debajo de la marea normal` });
+    for (const x of (pb[nom] || [])) {
+      if (x.fecha !== `${dd}/${mm}/${yy}`) continue;
+      if (x.estado === 'pleamar' && x.altura >= lvl) A.push({ n: 'rojo', t: `Crecida prevista hoy: pleamar ${num(x.altura)} m a las ${x.hora} en ${nom} (alerta ${num(lvl)} m)` });
+      if (x.estado === 'bajamar' && x.altura <= UMBRAL_BAJANTE) A.push({ n: 'rojo', t: `Bajante extrema prevista hoy: bajamar ${num(x.altura)} m a las ${x.hora} en ${nom}` });
+    }
+  }
+  return A;
+}
+function pintarAlertas() {
+  const caja = $('#alertas'); if (!caja) return;
+  const A = alertasDelDia(), clave = hoyISO() + '|' + A.map(a => a.t).join('|');
+  if (!A.length || leer('alertaCerrada', '') === clave) { caja.hidden = true; return; }
+  const nuevo = caja.dataset.clave !== clave; caja.dataset.clave = clave;
+  caja.className = 'alertas ' + (A.some(a => a.n === 'rojo') ? 'rojo' : 'ambar');
+  caja.innerHTML = `<button class="cerrar" id="cerrarAlerta" aria-label="Cerrar aviso">×</button><strong>Atención hoy</strong><ul>${A.map(a => `<li>${esc(a.t)}</li>`).join('')}</ul>`;
+  caja.hidden = false;
+  $('#cerrarAlerta').onclick = () => { guardar('alertaCerrada', clave); caja.hidden = true; };
+  if (nuevo && navigator.vibrate) try { navigator.vibrate([200, 100, 200]); } catch (e) {}
+}
+setInterval(pintarAlertas, 5 * 60 * 1000);
 
 // Restaurar la última pestaña (al final: todo lo que usa ya está definido)
 { const t = document.querySelector(`.tab[data-t="${leer('tab', 'sit')}"]`); if (t) t.click(); }
