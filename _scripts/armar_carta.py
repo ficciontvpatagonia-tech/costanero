@@ -26,6 +26,54 @@ carta["features"].append({"type": "Feature", "properties": {"z": "tierra", "nota
                           "geometry": {"type": "Polygon", "coordinates": [[[w, s], [e, s], [e, n], [w, n], [w, s]]]}})
 
 
+import math
+
+def _dp(pts, tol):
+    """Douglas-Peucker (en grados, corrigiendo longitud por latitud)."""
+    if len(pts) < 3: return pts
+    kx = math.cos(math.radians(pts[0][1]))
+    def dseg(p, a, b):
+        ax, ay, bx, by, px, py = a[0] * kx, a[1], b[0] * kx, b[1], p[0] * kx, p[1]
+        dx, dy = bx - ax, by - ay
+        if dx == dy == 0: return math.hypot(px - ax, py - ay)
+        t = max(0, min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+        return math.hypot(px - ax - t * dx, py - ay - t * dy)
+    keep = [False] * len(pts); keep[0] = keep[-1] = True; pila = [(0, len(pts) - 1)]
+    while pila:
+        i, j = pila.pop(); dmax, idx = 0, None
+        for k in range(i + 1, j):
+            d = dseg(pts[k], pts[i], pts[j])
+            if d > dmax: dmax, idx = d, k
+        if idx is not None and dmax > tol:
+            keep[idx] = True; pila += [(i, idx), (idx, j)]
+    return [p for p, k in zip(pts, keep) if k]
+
+def _chaikin(ring, it=2):
+    """Redondea esquinas de un anillo cerrado (corte 1/4–3/4)."""
+    for _ in range(it):
+        r = ring[:-1] if ring[0] == ring[-1] else ring
+        if len(r) < 4: return ring
+        nuevo = []
+        for i in range(len(r)):
+            a, b = r[i], r[(i + 1) % len(r)]
+            nuevo += [[a[0] * .75 + b[0] * .25, a[1] * .75 + b[1] * .25], [a[0] * .25 + b[0] * .75, a[1] * .25 + b[1] * .75]]
+        ring = nuevo + [nuevo[0]]
+    return ring
+
+TOL = 0.00011  # ~12 m: un píxel de la carta; convierte los escalones en diagonales
+def suavizar(geom):
+    def anillo(r):
+        if len(r) < 5: return r
+        s_ = _dp(r, TOL)
+        if s_[0] != s_[-1]: s_.append(s_[0])
+        return _chaikin(s_, 2) if len(s_) >= 4 else r
+    if geom["type"] == "Polygon":
+        geom["coordinates"] = [anillo(r) for r in geom["coordinates"]]
+    elif geom["type"] == "MultiPolygon":
+        geom["coordinates"] = [[anillo(r) for r in poly] for poly in geom["coordinates"]]
+    return geom
+
+
 def redondear(c):
     if isinstance(c[0], (int, float)):
         return [round(c[0], 5), round(c[1], 5)]  # 5 decimales ≈ 1 m
@@ -35,6 +83,8 @@ def redondear(c):
 orden = {"agua": 0, "profunda": 1, "seca": 2, "tierra": 3}
 carta["features"].sort(key=lambda f: orden.get(f["properties"]["z"], 9))
 for f in carta["features"]:
+    if f["properties"].get("nota") != "mascara recuadro inserto":
+        suavizar(f["geometry"])
     f["geometry"]["coordinates"] = redondear(f["geometry"]["coordinates"])
 json.dump({"type": "FeatureCollection", "fuente": "SHN cartas H-118 y H-130 (ed. 2016), redibujadas", "features": carta["features"]},
           open(WEB / "carta.geojson", "w"), separators=(",", ":"))

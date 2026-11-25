@@ -180,9 +180,12 @@ function profCarta(lat, lon) { // bilineal, null si no hay dato
   const x0 = Math.floor(fx), y0 = Math.floor(fy); if (x0 < 0 || y0 < 0 || x0 + 1 >= prof.cols || y0 + 1 >= prof.rows) return null;
   const g = (x, y) => prof.q[y * prof.cols + x];
   const a = g(x0, y0), b = g(x0 + 1, y0), c = g(x0, y0 + 1), d = g(x0 + 1, y0 + 1);
-  if (a === -128 || b === -128 || c === -128 || d === -128) return null;
   const tx = fx - x0, ty = fy - y0;
-  return ((a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty) / 10;
+  // bilineal con pesos renormalizados: en los bordes sin dato no queda "en escalones"
+  const w = [(1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty], v = [a, b, c, d];
+  let suma = 0, peso = 0;
+  for (let i = 0; i < 4; i++) if (v[i] !== -128) { suma += v[i] * w[i]; peso += w[i]; }
+  return peso < 0.5 ? null : suma / peso / 10;
 }
 // Corredor del Canal Costanero entre las boyas UNEN (rojas de un lado, verdes del otro): ahí manda la determinante
 let corredor = null;
@@ -215,7 +218,7 @@ let capaGrad = null;
 function dibujarNoPasa() {
   if (!prof) return;
   const umbral = (parseFloat(calado.value) || 0) + MARGEN;
-  const ESC = 6, Wc = prof.cols * ESC, Hc = prof.rows * ESC;
+  const ESC = 8, Wc = prof.cols * ESC, Hc = prof.rows * ESC;
   const cvG = document.createElement('canvas'), cvM = document.createElement('canvas'); cvG.width = cvM.width = Wc; cvG.height = cvM.height = Hc;
   const gG = cvG.getContext('2d'), gM = cvM.getContext('2d'), imG = gG.createImageData(Wc, Hc), imM = gM.createImageData(Wc, Hc), pg = imG.data, pm = imM.data;
   const yN = merc(prof.n), yS = merc(prof.s), A = GRAD[modo()];
@@ -236,12 +239,15 @@ function dibujarNoPasa() {
     }
   }
   gG.putImageData(imG, 0, 0); gM.putImageData(imM, 0, 0);
+  // bordes suaves (sin escalones de la grilla): difuminado leve del degradé y de la máscara
+  const suave = (cv, r) => { const o = document.createElement('canvas'); o.width = cv.width; o.height = cv.height; const g = o.getContext('2d'); g.filter = `blur(${r}px)`; g.drawImage(cv, 0, 0); return o; };
+  const cvG2 = suave(cvG, 2), cvM2 = suave(cvM, 1.2);
   const b = [[prof.s, prof.w], [prof.n, prof.e]];
   if (!capaGrad) {
     nuevoPanel('gradiente', 240); nuevoPanel('nopasa', 250);
-    capaGrad = L.imageOverlay(cvG.toDataURL(), b, { pane: 'gradiente', interactive: false }).addTo(mapa);
-    capaNoPasa = new CapaTrama(cvM.toDataURL(), b, { pane: 'nopasa', interactive: false }).addTo(mapa);
-  } else { capaGrad.setUrl(cvG.toDataURL()); capaNoPasa.setUrl(cvM.toDataURL()); }
+    capaGrad = L.imageOverlay(cvG2.toDataURL(), b, { pane: 'gradiente', interactive: false }).addTo(mapa);
+    capaNoPasa = new CapaTrama(cvM2.toDataURL(), b, { pane: 'nopasa', interactive: false }).addTo(mapa);
+  } else { capaGrad.setUrl(cvG2.toDataURL()); capaNoPasa.setUrl(cvM2.toDataURL()); }
   const hSF = alturaRio(LAT_SF), hBA = alturaRio(LAT_BA);
   const ley = document.getElementById('leyNoPasa');
   if (ley) ley.textContent = `Rayado negro = ahora no pasás con ${num(parseFloat(calado.value) || 0)} m de calado (+${num(MARGEN)} m de margen). Río: San Fernando ${num(hSF)} m, Buenos Aires ${num(hBA)} m.`;
