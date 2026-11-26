@@ -46,7 +46,8 @@ const oscuro = matchMedia('(prefers-color-scheme: dark)');
 const modo = () => { const t = document.documentElement.dataset.theme; return t === 'dark' ? 'noche' : t === 'light' ? 'dia' : oscuro.matches ? 'noche' : 'dia'; };
 const col = k => PALETA[modo()][k];
 let capasCarta = [];
-const estiloZona = f => ({ stroke: f.properties.z === 'tierra' || f.properties.z === 'seca', color: col('borde'), weight: 0.6,
+// la tierra sin contorno: donde se juntan cartas (Colonia SOHMA, OSM, recuadros) el contorno dibujaba líneas rectas sobre tierra
+const estiloZona = f => ({ stroke: f.properties.z === 'seca', color: col('borde'), weight: 0.6,
   fillColor: col(f.properties.z) || col('agua'), fillOpacity: 1 });
 nuevoPanel('tierra', 260); // la tierra siempre arriba del degradé y del rayado
 const lienzoTierra = L.canvas({ pane: 'tierra', padding: 0.5 });
@@ -251,29 +252,29 @@ function enCorredor(lon, lat) {
 /* Profundidad + rayado "no pasás" en mosaicos de 256 px, como un plotter: solo se calcula lo que está en pantalla,
    a la resolución de la pantalla, de a poco (sin trabar el teléfono). Si cambia la altura o el calado se repintan
    los mosaicos que ya están, sin parpadeo. (Antes: una imagen de 8,5 millones de píxeles por grilla, ~1,3 s por dibujo.) */
-const TILE = 256, PER = 13, LIN = 3.5; // rayado a 45°: período ~9 px y línea ~2,5 px medidos en perpendicular
+const TILE = 256, PER = 13, LIN = 3.5, FUNDIDO = 0.012; // FUNDIDO: grados (~1,2 km) de transición entre cartas // rayado a 45°: período ~9 px y línea ~2,5 px medidos en perpendicular
 let bufTile = null;
 function pintarTile(cv, c) {
   const g = cv.getContext('2d'), N = TILE * 2 ** c.z, x0 = c.x * TILE, y0 = c.y * TILE;
   const lonDe = px => px / N * 360 - 180, latDe = py => deg(Math.atan(Math.sinh(Math.PI * (1 - 2 * py / N))));
   const w = lonDe(x0), e = lonDe(x0 + TILE), n = latDe(y0), s = latDe(y0 + TILE);
-  const gr = profs.filter(p => p.e > w && p.w < e && p.n > s && p.s < n);
+  const gr = profs.filter(p => p.e > w && p.w < e && p.n > s && p.s < n); // ya ordenadas por prioridad
   g.clearRect(0, 0, TILE, TILE);
   if (!gr.length) return;
   if (!bufTile) bufTile = g.createImageData(TILE, TILE);
   const d = bufTile.data; d.fill(0);
   const umbral = (parseFloat(calado.value) || 0) + MARGEN, A = GRAD[modo()];
   const pre = gr.map(p => { // por grilla: columna → x en la grilla, fila → y en la grilla y altura del río
-    const fx = new Float32Array(TILE), fy = new Float32Array(TILE), h = new Float32Array(TILE);
-    for (let i = 0; i < TILE; i++) fx[i] = (lonDe(x0 + i + 0.5) - p.w) / (p.e - p.w) * p.cols - 0.5;
-    for (let j = 0; j < TILE; j++) { const lat = latDe(y0 + j + 0.5); fy[j] = (p.n - lat) / (p.n - p.s) * p.rows - 0.5; h[j] = alturaDe(p, lat); }
-    return { p, fx, fy, h };
+    const fx = new Float32Array(TILE), fy = new Float32Array(TILE), h = new Float32Array(TILE), bx = new Float32Array(TILE), by = new Float32Array(TILE);
+    for (let i = 0; i < TILE; i++) { const lon = lonDe(x0 + i + 0.5); fx[i] = (lon - p.w) / (p.e - p.w) * p.cols - 0.5; bx[i] = Math.min(lon - p.w, p.e - lon); }
+    for (let j = 0; j < TILE; j++) { const lat = latDe(y0 + j + 0.5); fy[j] = (p.n - lat) / (p.n - p.s) * p.rows - 0.5; h[j] = alturaDe(p, lat); by[j] = Math.min(lat - p.s, p.n - lat); }
+    return { p, fx, fy, h, bx, by };
   });
   const tocaCorredor = corredor && n > -34.475 && s < -34.445 && e > -58.505 && w < -58.465;
   for (let j = 0; j < TILE; j++) {
     for (let i = 0; i < TILE; i++) {
-      let z = null, hh = 0;
-      for (const { p, fx, fy, h } of pre) { // bilineal con pesos renormalizados (igual que profEn)
+      let z = null, hh = 0, wTop = 1, solo = true;
+      for (const { p, fx, fy, h, bx, by } of pre) { // bilineal con pesos renormalizados (igual que profEn); la de más prioridad manda
         const X = fx[i], Y = fy[j], xi = Math.floor(X), yi = Math.floor(Y);
         if (xi < 0 || yi < 0 || xi + 1 >= p.cols || yi + 1 >= p.rows) continue;
         const q = p.q, k = yi * p.cols + xi, tx = X - xi, ty = Y - yi, a = q[k], b = q[k + 1], c2 = q[k + p.cols], d2 = q[k + p.cols + 1];
@@ -283,7 +284,11 @@ function pintarTile(cv, c) {
         if (c2 !== -128) { wt = (1 - tx) * ty; suma += c2 * wt; peso += wt; }
         if (d2 !== -128) { wt = tx * ty; suma += d2 * wt; peso += wt; }
         if (peso < 0.5) continue;
-        z = suma / peso / 10; hh = h[j]; break;
+        const zi = suma / peso / 10;
+        if (z === null) { // la de más prioridad; cerca de su borde se funde con la siguiente (FUNDIDO grados): sin cajas a la vista
+          z = zi; hh = h[j]; wTop = Math.min(Math.max(Math.min(bx[i], by[j]) / FUNDIDO, 0), 1);
+          if (wTop >= 1 || !p.fundir) break;
+        } else { z = wTop * z + (1 - wTop) * zi; hh = wTop * hh + (1 - wTop) * h[j]; solo = false; break; }
       }
       if (z === null) continue;
       if (tocaCorredor && z < DETERMINANTE) {
@@ -294,11 +299,12 @@ function pintarTile(cv, c) {
       let r = 0, gg = 0, bb = 0, al = 0;
       if (z > -0.05) { // degradé tipo plotter: azul donde hay poca agua → blanco donde sobra
         const t = Math.min(Math.max((dA - umbral) / 3, 0), 1);
-        r = A[0][0] + (A[1][0] - A[0][0]) * t; gg = A[0][1] + (A[1][1] - A[0][1]) * t; bb = A[0][2] + (A[1][2] - A[0][2]) * t; al = 255;
+        r = A[0][0] + (A[1][0] - A[0][0]) * t; gg = A[0][1] + (A[1][1] - A[0][1]) * t; bb = A[0][2] + (A[1][2] - A[0][2]) * t;
+        al = solo && wTop < 1 ? 255 * wTop : 255; // borde de lo que cubren las cartas: el degradé se desvanece (sin línea recta)
       }
       if (dA < umbral) { // rayado negro, continuo entre mosaicos (se mide en píxeles globales)
         const m = (((x0 + i) - (y0 + j)) % PER + PER) % PER, k = m < LIN - 0.5 ? 0.85 : m < LIN + 0.5 ? 0.55 : 0.28;
-        if (al) { r *= 1 - k; gg *= 1 - k; bb *= 1 - k; } else al = 255 * k;
+        if (al === 255) { r *= 1 - k; gg *= 1 - k; bb *= 1 - k; } else if (al) { const a1 = al / 255, a = a1 + k * (1 - a1); r = r * a1 * (1 - k) / a; gg = gg * a1 * (1 - k) / a; bb = bb * a1 * (1 - k) / a; al = 255 * a; } else al = 255 * k;
       }
       d[o] = r; d[o + 1] = gg; d[o + 2] = bb; d[o + 3] = al;
     }
@@ -324,23 +330,25 @@ function dibujarNoPasa() { // repinta solo si cambió algo que se ve (altura, ca
   const k = [calado.value, modo(), profs.length, corredor ? 1 : 0, alturaRio(LAT_SF).toFixed(2), alturaRio(LAT_BA).toFixed(2), profs.some(p => p.ref === 'colonia') ? alturaColonia().toFixed(2) : ''].join('|');
   if (k !== claveProf) { claveProf = k; capaProf.repintar(); }
 }
-function cargarGrilla(url) {
+function cargarGrilla(url, prio = 2, fundir = false) {
   return fetch(url).then(r => r.json()).then(d => {
     const bin = atob(d.b64), q = new Int8Array(bin.length); for (let i = 0; i < bin.length; i++) q[i] = (bin.charCodeAt(i) << 24) >> 24;
-    const p = { ref: 'shn', ...d, q }; profs.push(p); dibujarNoPasa();
+    const p = { ref: 'shn', prio, fundir, ...d, q }; profs.push(p); profs.sort((a, b) => b.prio - a.prio); dibujarNoPasa();
   }).catch(() => {});
 }
-cargarGrilla('datos/profundidad.json');
+cargarGrilla('datos/profundidad.json', 2, true);
 /* Zonas extra: se bajan recién cuando el mapa se acerca a ellas (la app no se pone pesada) */
-const ZONAS = [{ id: 'colonia', caja: [[-34.539, -57.962], [-34.411, -57.720]], carta: 'datos/carta_colonia.geojson', grilla: 'datos/profundidad_colonia.json' },
-  { id: 'costa_uy', caja: [[-34.60, -58.20], [-34.05, -57.66]], carta: 'datos/costa_uy.geojson' }];
+const ZONAS = [{ id: 'colonia', caja: [[-34.539, -57.962], [-34.411, -57.720]], carta: 'datos/carta_colonia.geojson', grilla: 'datos/profundidad_colonia.json', prio: 3, fundir: true },
+  { id: 'costa_uy', caja: [[-34.60, -58.20], [-34.05, -57.66]], carta: 'datos/costa_uy.geojson' },
+  // H-118 este: Banco Ortiz, Paso del Farallón, Playa Honda y costa uruguaya hasta Martín García (antes era un hueco sin profundidad)
+  { id: 'este', caja: [[-34.70, -58.115], [-34.10, -57.747]], carta: 'datos/carta_este.geojson', grilla: 'datos/profundidad_este.json', prio: 1 }];
 function cargarZonas() {
   const v = mapa.getBounds().pad(0.5);
   for (const z of ZONAS) {
     if (z.cargada || !v.intersects(L.latLngBounds(z.caja))) continue;
     z.cargada = true;
     if (z.carta) fetch(z.carta).then(r => r.json()).then(agregarCarta).catch(() => { z.cargada = false; });
-    if (z.grilla) cargarGrilla(z.grilla);
+    if (z.grilla) cargarGrilla(z.grilla, z.prio, z.fundir);
   }
 }
 mapa.on("moveend", cargarZonas); cargarZonas();
