@@ -57,7 +57,7 @@ function agregarCarta(gj) {
   capasCarta.push(L.geoJSON(gj, { pane: 'tierra', renderer: lienzoTierra, interactive: false, style: estiloZona, filter: esTierra }).addTo(mapa));
 }
 fetch('datos/carta.geojson').then(r => r.json()).then(agregarCarta).catch(() => {});
-oscuro.addEventListener('change', () => { capasCarta.forEach(c => c.setStyle(estiloZona)); if (typeof dibujarNoPasa === 'function') dibujarNoPasa(); document.getElementById('mapa').style.background = col('agua'); dibujarGrilla(); });
+oscuro.addEventListener('change', () => { capasCarta.forEach(c => c.setStyle(estiloZona)); if (typeof dibujarNoPasa === 'function') { dibujarNoPasa(); capaSond.redraw(); } document.getElementById('mapa').style.background = col('agua'); dibujarGrilla(); });
 document.getElementById('mapa').style.background = col('agua');
 
 /* ---------- Grilla de latitud y longitud ---------- */
@@ -179,7 +179,7 @@ fetch('datos/boyas.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
   }
   etiquetasSegunZoom();
   dibujarRuta();
-  armarCorredor(); dibujarNoPasa(); dibujarPasoMitre();
+  armarCorredor(); dibujarNoPasa(); dibujarPasoMitre(); capaSond.redraw(); // sin sondajes viejos dentro del Costanero
 });
 mapa.on('zoomend', etiquetasSegunZoom);
 
@@ -310,6 +310,36 @@ function pintarTile(cv, c) {
     }
   }
   g.putImageData(bufTile, 0, 0);
+}
+/* Sondajes de la carta (m al cero de cada carta), como en papel: entero en itálica y el decimal chico abajo a la derecha.
+   Capa propia de mosaicos a la resolución real de la pantalla (texto nítido en el celular), desde zoom 13. En el Costanero no: ahí manda UNEN. */
+let sondajes = [];
+const CapaSond = L.GridLayer.extend({
+  createTile(c) {
+    const r = Math.min(devicePixelRatio || 1, 3), cv = document.createElement('canvas'); cv.width = cv.height = TILE * r;
+    const g = cv.getContext('2d'); g.scale(r, r);
+    pintarSondajes(g, c, TILE * 2 ** c.z, c.x * TILE, c.y * TILE); return cv;
+  },
+});
+nuevoPanel('sondajes', 250);
+const capaSond = new CapaSond({ pane: 'sondajes', tileSize: TILE, minZoom: 13, updateWhenZooming: false, keepBuffer: 1 }).addTo(mapa);
+fetch('datos/sondajes.json').then(r => r.json()).then(d => { sondajes = [...d.shn, ...d.sohma]; capaSond.redraw(); }).catch(() => {});
+function pintarSondajes(g, c, N, x0, y0) {
+  if (!sondajes.length) return;
+  const dia = modo() === 'dia', T1 = c.z >= 15 ? 14 : 12.5, T2 = Math.round(T1 * 0.72), M = 26;
+  g.save(); g.lineJoin = 'round'; g.lineWidth = 3;
+  g.strokeStyle = dia ? 'rgba(255,255,255,.8)' : 'rgba(8,32,48,.85)'; g.fillStyle = dia ? '#123247' : '#dcedf8';
+  for (const [la, lo, z] of sondajes) {
+    const px = (lo + 180) / 360 * N - x0; if (px < -M || px > TILE + M) continue;
+    const py = (1 - Math.log(Math.tan(Math.PI / 4 + rad(la) / 2)) / Math.PI) / 2 * N - y0; if (py < -M || py > TILE + M) continue;
+    if (corredor && la > -34.475 && la < -34.445 && lo > -58.505 && lo < -58.465 && enCorredor(lo, la)) continue;
+    const ent = String(Math.floor(z + 1e-6)), dec = String(Math.round((z - Math.floor(z + 1e-6)) * 10) % 10);
+    g.font = `italic 600 ${T1}px Barlow, sans-serif`;
+    g.textAlign = 'right'; g.strokeText(ent, px + 1, py + T1 * 0.35); g.fillText(ent, px + 1, py + T1 * 0.35);
+    g.font = `italic 600 ${T2}px Barlow, sans-serif`; g.textAlign = 'left';
+    g.strokeText(dec, px + 1.5, py + T1 * 0.35 + T2 * 0.45); g.fillText(dec, px + 1.5, py + T1 * 0.35 + T2 * 0.45);
+  }
+  g.restore();
 }
 // Cola: se pintan mosaicos hasta ~10 ms por cuadro y se sigue en el próximo (la pantalla nunca se congela)
 const colaTiles = new Map(); let colaActiva = false;

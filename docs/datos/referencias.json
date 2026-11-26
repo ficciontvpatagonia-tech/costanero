@@ -13,27 +13,24 @@
    "lat": -34.543333,
    "lon": -58.418283,
    "tipo": "especial",
-   "nota": "Toma de agua AySA. Zona restringida: 200 m alrededor (SHN H-155).",
-   "fuente": "Marto (Navionics) / SHN H-118",
-   "radio": 200
+   "nota": "Toma de agua AySA.",
+   "fuente": "Marto (Navionics) / SHN H-118"
   },
   {
    "n": "Toma AySA N° 2",
    "lat": -34.54662,
    "lon": -58.42165,
    "tipo": "especial",
-   "nota": "Toma de agua AySA. Zona restringida: 200 m alrededor (SHN H-155).",
-   "fuente": "SHN H-118",
-   "radio": 200
+   "nota": "Toma de agua AySA.",
+   "fuente": "SHN H-118"
   },
   {
    "n": "Toma AySA",
    "lat": -34.54195,
    "lon": -58.43283,
    "tipo": "especial",
-   "nota": "Toma de agua AySA. Zona restringida: 200 m alrededor (SHN H-155).",
-   "fuente": "SHN H-118",
-   "radio": 200
+   "nota": "Toma de agua AySA.",
+   "fuente": "SHN H-118"
   }
  ]
 }
