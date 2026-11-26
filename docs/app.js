@@ -779,7 +779,7 @@ function abrirViento() {
   const ref = posGps || mapa.getCenter();
   let mejor = null; for (const [k, p] of Object.entries(PUNTOS)) { const d = distM(ref, L.latLng(p.lat, p.lon)); if (!mejor || d < mejor[1]) mejor = [k, d]; }
   if (mejor) { sel.value = mejor[0]; guardar('puntoViento', mejor[0]); }
-  abrirPanel(false); $('#hojaAis').hidden = true;
+  abrirPanel(false);
   $('#hojaViento').hidden = false;
   cargarViento(true);
 }
@@ -857,18 +857,6 @@ function listarRecorridos() {
 setInterval(() => { if (grabando) { guardar('trackActual', trackActual); listarRecorridos(); } }, 15000);
 if (grabando) iniciarGps(false);
 pintarRec(); listarRecorridos();
-
-/* ---------- AIS: mapa de barcos de VesselFinder (insertable gratis), centrado donde estás ---------- */
-$('#btnAis').onclick = () => {
-  const c = posGps || mapa.getCenter(), caja = $('#aisMarco');
-  caja.innerHTML = '';
-  const f = document.createElement('iframe');
-  f.title = 'Barcos AIS'; f.loading = 'lazy';
-  f.src = `https://www.vesselfinder.com/aismap?zoom=12&lat=${c.lat.toFixed(4)}&lon=${c.lng.toFixed(4)}&width=760&height=520&names=true&mmsi=0&track=false&fleet=false&fleet_name=false&fleet_hide_old_positions=false&clicktoact=false&store_pos=false&ra=${encodeURIComponent(location.href.split('#')[0])}`;
-  caja.appendChild(f);
-  abrirPanel(false); $('#hojaViento').hidden = true; $('#hojaAis').hidden = false;
-};
-$('#cerrarAis').onclick = () => { $('#hojaAis').hidden = true; $('#aisMarco').innerHTML = ''; };
 
 // Restaurar la última pestaña (al final: todo lo que usa ya está definido)
 { const t = document.querySelector(`.tab[data-t="${leer('tab', 'sit')}"]`) || document.querySelector('.tab[data-t="sit"]'); if (t) t.click(); }
