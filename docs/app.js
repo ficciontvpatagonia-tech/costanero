@@ -367,7 +367,7 @@ fetch('datos/senales_vnt.json', { cache: 'no-cache' }).then(r => r.json()).then(
   for (const x of d.senales) {
     const col = (x.c || [])[0] || '';
     const k = x.f === 'LATERAL' ? (col.toUpperCase() === '#960018' ? 'roja' : 'verde') : x.f === 'PELIGRO' ? 'peligro' : x.f === 'C. PREFER.' ? 'bif' : 'especial';
-    const nom = `Km ${String(x.km).replace('.', ',')}`, sec = SECTOR[x.sec] ?? x.sec;
+    const esKm = /^\d+(\.\d+)?$/.test(String(x.km)), nom = esKm ? `Km ${String(x.km).replace('.', ',')}` : (k === 'peligro' ? String(x.km).toLowerCase().replace(/(^|[\s\-/.])\S/g, c => c.toUpperCase()) : String(x.km)), sec = SECTOR[x.sec] ?? x.sec;
     ficha(L.marker([x.lat, x.lon], { icon: iconoBoya({ k }), title: `${sec} ${nom}` }), x.lat, x.lon, `${nom}${sec ? ' · ' + sec : ''}`, NOMBRE_TIPO[k]).addTo(capaBoyas);
     L.marker([x.lat, x.lon], { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya" style="transform:translate(12px,-22px)">${esc(nom)}</div>`, iconSize: [0, 0] }) }).addTo(etBoyas);
   }
@@ -421,6 +421,22 @@ fetch('datos/puerto.json', { cache: 'no-cache' }).then(r => r.json()).then(d => 
   for (const r of d.rotulosPuerto || []) {
     const grande = r.z <= 12;
     L.marker([r.lat, r.lon], { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="${grande ? 'et-lugar et-puerto' : 'et-canal'}" style="transform:translate(-50%,-50%)">${esc(r.n)}</div>`, iconSize: [0, 0] }) }).addTo(grande ? etLugares : etRios);
+  }
+}).catch(() => {});
+
+/* ---------- Peligros de la carta SHN H-155: naufragios sin boya, obstrucciones, ex-pilotes, marcas CIC, balizas de aguajes ---------- */
+const SVG_PEL = {
+  naufragio: '<svg width="26" height="16" viewBox="0 0 26 16"><ellipse cx="13" cy="8" rx="12" ry="7" fill="#fff8" stroke="#111" stroke-width="1.3" stroke-dasharray="2 2"/><path d="M3 8h20M8 4v8M13 4v8M18 4v8" stroke="#111" stroke-width="1.6"/></svg>',
+  obstruccion: '<svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" fill="#fff8" stroke="#111" stroke-width="1.4" stroke-dasharray="2 2"/><circle cx="9" cy="9" r="1.6" fill="#111"/></svg>',
+  pilote: '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="#111" stroke="#fff" stroke-width="2"/></svg>' };
+const DET_PEL = { naufragio: 'Naufragio (casco hundido)', obstruccion: 'Obstrucción sumergida', pilote: 'Pilote', especial: 'Marca especial', tuberia: 'Tuberías sumergidas: no fondear', roja: 'Baliza lateral roja', verde: 'Baliza lateral verde', segura: 'Aguas seguras' };
+fetch('datos/peligros.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
+  for (const p of d.peligros) {
+    const k = p.t === 'tuberia' ? 'especial' : p.t;
+    const icon = SVG_PEL[k] ? L.divIcon({ className: 'toque', html: SVG_PEL[k], iconSize: k === 'naufragio' ? [26, 16] : k === 'pilote' ? [14, 14] : [18, 18] }) : iconoBoya({ k });
+    ficha(L.marker([p.lat, p.lon], { icon, title: p.n }), p.lat, p.lon, p.n, DET_PEL[p.t] + ' · SHN H-155').addTo(capaBoyas);
+    if (p.t === 'naufragio' || p.t === 'pilote' || p.t === 'especial' || p.n.startsWith('Ex-Pilote'))
+      L.marker([p.lat, p.lon], { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya" style="transform:translate(12px,-6px)">${esc(p.n.split(' · ')[0])}</div>`, iconSize: [0, 0] }) }).addTo(etBoyas);
   }
 }).catch(() => {});
 

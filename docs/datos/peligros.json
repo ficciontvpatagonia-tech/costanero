@@ -1,0 +1,311 @@
+{
+"fuente": "SHN H-155 (Vías Navegables 2014, SHN 2002-2014), leído a mano; posiciones ±15 m",
+"peligros": [
+{
+"t": "naufragio",
+"n": "Sunset Dix",
+"lat": -34.45094,
+"lon": -58.49513
+},
+{
+"t": "naufragio",
+"n": "Canbal",
+"lat": -34.4572,
+"lon": -58.49344
+},
+{
+"t": "naufragio",
+"n": "Balsa 602",
+"lat": -34.47512,
+"lon": -58.4708
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.45,
+"lon": -58.50406
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.47937,
+"lon": -58.47295
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.45813,
+"lon": -58.41825
+},
+{
+"t": "pilote",
+"n": "Pilote N°14",
+"lat": -34.4477,
+"lon": -58.42938
+},
+{
+"t": "naufragio",
+"n": "Araucano",
+"lat": -34.45613,
+"lon": -58.4373
+},
+{
+"t": "pilote",
+"n": "Pilote N°12",
+"lat": -34.46188,
+"lon": -58.41638
+},
+{
+"t": "naufragio",
+"n": "Cap. Blood",
+"lat": -34.46125,
+"lon": -58.41075
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.46219,
+"lon": -58.40938
+},
+{
+"t": "pilote",
+"n": "Pilote N°13",
+"lat": -34.45425,
+"lon": -58.38845
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.46138,
+"lon": -58.37281
+},
+{
+"t": "obstruccion",
+"n": "Ex-Pilote",
+"lat": -34.482,
+"lon": -58.36595
+},
+{
+"t": "obstruccion",
+"n": "Ex-Pilote N°10",
+"lat": -34.48656,
+"lon": -58.40313
+},
+{
+"t": "especial",
+"n": "CIC-3",
+"lat": -34.49863,
+"lon": -58.41095
+},
+{
+"t": "especial",
+"n": "CIC-5",
+"lat": -34.51145,
+"lon": -58.4447
+},
+{
+"t": "especial",
+"n": "CIC-4",
+"lat": -34.51988,
+"lon": -58.4197
+},
+{
+"t": "obstruccion",
+"n": "Ex-Pilote N°11",
+"lat": -34.48325,
+"lon": -58.3658
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.49113,
+"lon": -58.37863
+},
+{
+"t": "obstruccion",
+"n": "Ex-Pilote N°9",
+"lat": -34.5,
+"lon": -58.3505
+},
+{
+"t": "especial",
+"n": "CIC-1",
+"lat": -34.5225,
+"lon": -58.368
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.52105,
+"lon": -58.33263
+},
+{
+"t": "naufragio",
+"n": "Tijuca III",
+"lat": -34.51655,
+"lon": -58.29825
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.52605,
+"lon": -58.2953
+},
+{
+"t": "pilote",
+"n": "Pilote N°7 · Fl.Y(5) 13 s",
+"lat": -34.51905,
+"lon": -58.32655
+},
+{
+"t": "naufragio",
+"n": "Borrasca",
+"lat": -34.54094,
+"lon": -58.42813
+},
+{
+"t": "especial",
+"n": "CIC-2",
+"lat": -34.54469,
+"lon": -58.40438
+},
+{
+"t": "naufragio",
+"n": "Barcaza 1121",
+"lat": -34.55638,
+"lon": -58.40013
+},
+{
+"t": "naufragio",
+"n": "Naufragio",
+"lat": -34.56363,
+"lon": -58.3922
+},
+{
+"t": "obstruccion",
+"n": "Ex-Pilote N°6",
+"lat": -34.5528,
+"lon": -58.33438
+},
+{
+"t": "obstruccion",
+"n": "Ex-Pilote N°5",
+"lat": -34.53688,
+"lon": -58.30155
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.5372,
+"lon": -58.2972
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.54155,
+"lon": -58.30438
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.54738,
+"lon": -58.30638
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.5547,
+"lon": -58.2983
+},
+{
+"t": "obstruccion",
+"n": "Obstrucción",
+"lat": -34.56045,
+"lon": -58.29175
+},
+{
+"t": "tuberia",
+"n": "Tuberías sumergidas · Fl(3)Y 15 s",
+"lat": -34.54655,
+"lon": -58.29625
+},
+{
+"t": "tuberia",
+"n": "Tuberías sumergidas · Fl(3)Y 15 s",
+"lat": -34.5497,
+"lon": -58.29988
+},
+{
+"t": "roja",
+"n": "Baliza N°5",
+"lat": -34.46455,
+"lon": -58.4898
+},
+{
+"t": "roja",
+"n": "Baliza N°8",
+"lat": -34.465,
+"lon": -58.48563
+},
+{
+"t": "roja",
+"n": "Baliza N°11",
+"lat": -34.46545,
+"lon": -58.48205
+},
+{
+"t": "verde",
+"n": "Aguaje Julia N°1",
+"lat": -34.44575,
+"lon": -58.5027
+},
+{
+"t": "verde",
+"n": "Aguaje Julia N°2",
+"lat": -34.44405,
+"lon": -58.5027
+},
+{
+"t": "verde",
+"n": "Aguaje Julia N°3",
+"lat": -34.44288,
+"lon": -58.5027
+},
+{
+"t": "verde",
+"n": "Aguaje Julia N°4",
+"lat": -34.44163,
+"lon": -58.5027
+},
+{
+"t": "verde",
+"n": "Aguaje Julia N°6",
+"lat": -34.43844,
+"lon": -58.50219
+},
+{
+"t": "segura",
+"n": "Aguaje Rivademar N°2",
+"lat": -34.44594,
+"lon": -58.49438
+},
+{
+"t": "segura",
+"n": "Aguaje Rivademar N°3",
+"lat": -34.44356,
+"lon": -58.49438
+},
+{
+"t": "segura",
+"n": "Aguaje Rivademar N°4",
+"lat": -34.44094,
+"lon": -58.49438
+},
+{
+"t": "segura",
+"n": "Aguaje Rivademar N°5",
+"lat": -34.43844,
+"lon": -58.49438
+}
+]
+}
