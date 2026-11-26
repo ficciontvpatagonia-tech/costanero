@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=88">
+<link rel="stylesheet" href="estilo.css?v=90">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -121,6 +121,7 @@
     <button role="tab" class="tab on" data-t="avisos" aria-selected="true">Avisos</button>
     <button role="tab" class="tab" data-t="alertas" aria-selected="false">Alertas <span class="cuenta" id="cuentaAlertas" hidden></span></button>
     <button role="tab" class="tab" data-t="recorridos" aria-selected="false">Recorridos</button>
+    <button role="tab" class="tab" data-t="waypoints" aria-selected="false">Waypoints</button>
     <button role="tab" class="tab" data-t="info" aria-selected="false">Info</button>
   </nav>
 
@@ -135,7 +136,9 @@
 
   <section class="vista" id="v-recorridos">
     <div id="listaRecorridos"></div>
-    <h2 class="sec">Waypoints</h2>
+  </section>
+
+  <section class="vista" id="v-waypoints">
     <div id="listaWp"></div>
   </section>
 
@@ -147,21 +150,22 @@
       <li><i style="background:repeating-linear-gradient(45deg,#000 0 4px,#333 4px 10px)"></i>No pasás con tu calado</li>
       <li><i style="background:repeating-linear-gradient(90deg,#ff7a00 0 8px,transparent 8px 14px)"></i>Ruta Canal Costanero</li>
       <li><i style="background:repeating-linear-gradient(90deg,#ff7a00 0 10px,transparent 10px 16px)"></i>Pasos del Emilio Mitre</li>
+      <li><i style="background:repeating-linear-gradient(90deg,#ff7a0080 0 10px,transparent 10px 16px);height:3px;margin:5px 0"></i>Hacia Colonia (derrota sugerida)</li>
       <li><i style="background:#ff7a0033;border:2px dashed #d7262e"></i>Pasillo entre zonas de refulado</li>
-      <li><i style="background:repeating-linear-gradient(90deg,#d7262e 0 8px,#14953d 8px 16px)"></i>Límites canal troncal</li>
+      <li><i style="background:repeating-linear-gradient(90deg,#d7262e 0 8px,#14953d 8px 16px)"></i>Límites de canales de buques</li>
       <li><i style="background:#d7262e33;border:2px dashed #d7262e"></i>Zona restringida / vertido</li>
-      <li><i style="background:repeating-linear-gradient(90deg,#7fa7c0 0 10px,transparent 10px 16px)"></i>Canales del puerto</li>
       <li><i style="background:#c2188f"></i>Tu rumbo</li>
       <li><i style="background:#00d5ff"></i>Recorrido grabado</li>
       <li><i style="background:#0b2a3c;border-radius:50%"></i>Clubes y amarras</li>
     </ul>
     <p class="aviso-legal">Ayuda a la navegación. No reemplaza la carta náutica oficial, los avisos a los navegantes ni el instrumental de a bordo. Datos aproximados: la responsabilidad de la navegación es del patrón.</p>
-    <p class="firma">Creado por Martín Subirá · versión 1.7.0 Beta</p>
+    <p class="firma">Creado por Martín Subirá · versión 1.8.0 Beta</p>
+    <p class="firma">Contacto: <a href="mailto:hola@globalpatagonia.org">hola@globalpatagonia.org</a></p>
   </section>
 </aside>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=88"></script>
+<script src="app.js?v=90"></script>
 </body>
 </html>

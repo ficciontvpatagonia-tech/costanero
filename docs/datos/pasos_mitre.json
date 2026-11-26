@@ -25,5 +25,40 @@
    ]
   ],
   "nota": "Cerca de la boya lateral verde del Km 13,6, al norte del Canal de Acceso al Puerto de Buenos Aires."
+ },
+ "colonia": {
+  "nombre": "Hacia Colonia (por el sur de Farallón y San Gabriel)",
+  "fuente": "Club de Veleros Piedrabuena, ruta San Isidro–Colonia alternativa Sur v2.17 (03/11/2026, WGS84); coincide con la opción recomendada por A. Kalfayan, práctico del Puerto de Colonia (actualizado nov 2026). Sigue desde UNEN A (posición UNEN).",
+  "puntos": [
+   {
+    "n": "Km 60,1 · Paso del Farallón",
+    "p": [
+     -34.508377,
+     -57.939975
+    ]
+   },
+   {
+    "n": "Paso Banco de los Pescadores",
+    "p": [
+     -34.485217,
+     -57.861355
+    ]
+   },
+   {
+    "n": "Recalada Colonia",
+    "p": [
+     -34.467235,
+     -57.856688
+    ]
+   },
+   {
+    "n": "Puerto de Yates",
+    "p": [
+     -34.467347,
+     -57.852233
+    ]
+   }
+  ],
+  "nota": "Banco de los Pescadores ~1,70 m al cero de Colonia. Ferries cruzan el Paso del Farallón entre Km 58 y 60,1."
  }
 }

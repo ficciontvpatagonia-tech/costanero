@@ -347,12 +347,14 @@ mapa.on("moveend", cargarZonas); cargarZonas();
 
 
 /* ---------- Veriles oficiales de los canales troncales (Emilio Mitre, Paraná de las Palmas…) ---------- */
-fetch('datos/veriles.json', { cache: 'no-cache' }).then(r => r.json()).then(v => {
-  const capa = L.layerGroup().addTo(mapa);
-  const info = '<h3>Canal troncal</h3><p>Canal de buques: cruzar en perpendicular.</p>';
-  for (const t of v.rojo) L.polyline(t.map(p => [p[1], p[0]]), { pane: 'ruta', color: '#d7262e', weight: 2.5, dashArray: '8 5', opacity: 0.9 }).bindPopup(info).addTo(capa);
-  for (const t of v.verde) L.polyline(t.map(p => [p[1], p[0]]), { pane: 'ruta', color: '#14953d', weight: 2.5, dashArray: '8 5', opacity: 0.9 }).bindPopup(info).addTo(capa);
-}).catch(() => {});
+// Un solo estilo para todos los canales de buques (Mitre, Palmas, Acceso, Norte y Sur del puerto): veril rojo y verde punteados
+const capaVeriles = L.layerGroup().addTo(mapa);
+function trazarVeriles(v, latLon) { // v = { rojo: [...], verde: [...] }; puntos [lon, lat] (Vías Navegables) o [lat, lon] (puerto)
+  const info = '<h3>Canal de buques</h3><p>Cruzar en perpendicular.</p>', ll = t => latLon ? t : t.map(p => [p[1], p[0]]);
+  for (const [k, color] of [['rojo', '#d7262e'], ['verde', '#14953d']])
+    for (const t of v[k] || []) L.polyline(ll(t), { pane: 'ruta', color, weight: 2.5, dashArray: '8 5', opacity: 0.9 }).bindPopup(info).addTo(capaVeriles);
+}
+fetch('datos/veriles.json', { cache: 'no-cache' }).then(r => r.json()).then(v => trazarVeriles(v, false)).catch(() => {});
 
 /* ---------- Clubes y amarras (OpenStreetMap) ---------- */
 const capaClubes = grupoVisible(), etClubes = grupoVisible();
@@ -405,8 +407,8 @@ function dibujarRuta() {
    Principal: cruzar a la altura del Km 25,2 y seguir a UNEN B → UNEN A (entre las zonas de refulado).
    Alternativa: cruce por el Km 13,6–14, frente al Puerto de Buenos Aires.
    UNEN A y B se toman de las posiciones UNEN (si se mueven, el paso se corrige solo). */
-function etiquetaPaso(latlng, texto) {
-  L.marker(latlng, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya et-destacada" style="transform:translate(10px,-50%);border-left-color:#ff7a00">${esc(texto)}</div>`, iconSize: [0, 0] }) }).addTo(capaRuta);
+function etiquetaPaso(latlng, texto, opac = 1) {
+  L.marker(latlng, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya et-destacada" style="transform:translate(10px,-50%);border-left-color:#ff7a00;opacity:${opac}">${esc(texto)}</div>`, iconSize: [0, 0] }) }).addTo(capaRuta);
 }
 function dibujarPasoMitre() {
   fetch('datos/pasos_mitre.json', { cache: 'no-cache' }).then(r => r.json()).then(P => {
@@ -419,6 +421,18 @@ function dibujarPasoMitre() {
       L.circleMarker(P.principal.km252, { pane: 'ruta', radius: 5, color: '#ff7a00', fillColor: '#fff', fillOpacity: 1, weight: 2 })
         .bindPopup(`<h3>Cruce Km 25,2</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(P.principal.km252[0]))}<br>${esc(fmtLon(P.principal.km252[1]))}</p>`).addTo(capaRuta);
       etiquetaPaso([(b.lat + a.lat) / 2, (b.lon + a.lon) / 2], 'Paso seguro Mitre (Km 25,2)');
+    }
+    // Derrota clásica a Colonia: sigue desde UNEN A, por el sur de Farallón y San Gabriel (CVPB / práctico de Colonia)
+    const co = P.colonia;
+    if (a && co) {
+      const pts = [[a.lat, a.lon], ...co.puntos.map(x => x.p)];
+      const mn = pts.slice(1).reduce((s, q, i) => s + mapa.distance(pts[i], q), 0) / 1852;
+      L.polyline(pts, { pane: 'ruta', color: '#ff7a00', weight: 2, opacity: 0.5, dashArray: '8 6' })
+        .bindPopup(`<h3>Hacia Colonia</h3><p>UNEN A → Km 60,1 → Banco de los Pescadores → Puerto de Yates · ${num(mn, 1)} mn</p><p>${esc(co.nota)}</p>`).addTo(capaRuta);
+      for (const x of co.puntos) L.circleMarker(x.p, { pane: 'ruta', radius: 3.5, color: '#ff7a00', opacity: 0.6, fillColor: '#fff', fillOpacity: 0.8, weight: 1.5 })
+        .bindPopup(`<h3>${esc(x.n)}</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(x.p[0]))}<br>${esc(fmtLon(x.p[1]))}</p>`).addTo(capaRuta);
+      const k = co.puntos[0].p, f = 0.12; // rótulo cerca de UNEN A, donde termina el paso seguro
+      etiquetaPaso([a.lat + (k[0] - a.lat) * f, a.lon + (k[1] - a.lon) * f], 'Hacia Colonia', 0.75);
     }
     const al = P.alternativa;
     L.polyline(al.cruce, { pane: 'ruta', color: '#ff7a00', weight: 3, opacity: 0.95, dashArray: '8 6' })
@@ -465,8 +479,8 @@ function dibujarPasillo() {
 
 /* ---------- Puerto de Buenos Aires: Canal Norte, Canal Sur, Canal de Acceso, zonas restringidas y de vertido (OpenStreetMap) ---------- */
 fetch('datos/puerto.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
+  if (d.veriles) trazarVeriles(d.veriles, true); // bordes armados con las boyas de cada lado (_scripts/veriles_puerto.py)
   for (const c of d.canales) {
-    if (!c.soloRotulo) L.polyline(c.c, { pane: 'ruta', color: '#7fa7c0', weight: 3, dashArray: '10 6', opacity: 0.9, interactive: false }).addTo(mapa);
     // rótulo a lo largo del canal (en uno o dos lugares si es largo)
     const pos = c.f ? [c.f] : c.c.length > 20 ? [0.3, 0.7] : [0.5];
     for (const f of pos) {
@@ -694,24 +708,85 @@ function pintarSemaforo() {
   pintarCurva();
 }
 
-function curva(est, e, conLim) {
+/* Gráfico de altura: horas abajo y se desliza a la derecha (como el viento), 12 h atrás y 3 días adelante.
+   Colores: real (medida SHN) azul · predicción (tabla SHN/SOHMA) ámbar · con el viento de ahora (predicción + diferencia actual) magenta */
+const PXH = 22, ANTES_H = 12, DESPUES_H = 72, EST_H = 12;
+const COL_REAL = '#1f8fe0', COL_PRED = '#e39b0b', COL_VIENTO = '#c2188f';
+const astroLargo = {}; // cod → { t, serie } predicción SHN hasta +3 días (la API la da por ventanas de ~20 h)
+function pedirAstroLargo(cod) {
+  if (!EST_SHN[cod]) return;
+  const c = astroLargo[cod]; if (c && (c.cargando || Date.now() - c.t < 3 * 3600e3)) return;
+  astroLargo[cod] = { serie: c ? c.serie : [], t: c ? c.t : 0, cargando: true };
+  const fechas = [20, 40, 60, 80].map(hh => new Date(Date.now() + (hh - 3) * 3600e3).toISOString().replace(/\D/g, '').slice(0, 12));
+  Promise.allSettled(fechas.map(f => fetch(`https://www.hidro.gob.ar/api/v1/AlturasHorarias/${cod}/${f}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))))
+    .then(rs => {
+      const m = new Map();
+      for (const r of rs) if (r.status === 'fulfilled') for (const x of r.value.astronomica || []) if (x.altura != null) m.set(x.fecha, +x.altura.toFixed(2));
+      astroLargo[cod] = m.size ? { t: Date.now(), serie: [...m].sort((a, b) => a[0] < b[0] ? -1 : 1) } : { ...astroLargo[cod], cargando: false, t: Date.now() - 2.5 * 3600e3 }; // sin red: reintenta en ~30 min
+      if (zonaSel.value === cod) pintarCurva();
+    });
+}
+const isoLocal = t => { const d = new Date(t - 3 * 3600e3); return d.toISOString().slice(0, 13) + ':00:00'; };
+function prediccionDe(z, est, t0, t1) {
+  if (z === 'COLO' || z === 'MVD') { // tablas SOHMA (horarias, todo el año)
+    const serie = mareasUY && mareasUY[z === 'COLO' ? 'colonia' : 'montevideo'] && mareasUY[z === 'COLO' ? 'colonia' : 'montevideo'].serie, out = [];
+    if (serie) for (let t = Math.floor(t0 / 3600e3) * 3600e3; t <= t1; t += 3600e3) { const d = new Date(t - 3 * 3600e3), v = serie[d.toISOString().slice(0, 10)]; if (v && v[d.getUTCHours()] != null) out.push([isoLocal(t), v[d.getUTCHours()] / 100]); }
+    return out;
+  }
+  const m = new Map((est.astronomica || []).map(x => [x[0], x[1]]));
+  for (const x of (astroLargo[z] && astroLargo[z].serie) || []) if (!m.has(x[0])) m.set(x[0], x[1]);
+  return [...m].filter(x => { const t = +new Date(x[0]); return t >= t0 && t <= t1; }).sort((a, b) => a[0] < b[0] ? -1 : 1);
+}
+function curva(z, est, conLim) {
   const caja = $('#curvaSF');
   const dibujar = () => {
-    const W = caja.clientWidth, H = caja.clientHeight; if (!W) return;
-    const obs = est.observada, fut = e ? e.futuro : [], ast = est.astronomica;
-    const todos = [...obs, ...ast, ...fut]; if (!todos.length) return;
-    const t0 = Math.min(...todos.map(x => +new Date(x[0]))), t1 = Math.max(...todos.map(x => +new Date(x[0])));
-    const c = parseFloat(calado.value) || 0, lim = c - DETERMINANTE + 0.2; // altura mínima para 0,2 m bajo la quilla
-    const vals = [...todos.map(x => x[1]), ...(conLim ? [lim] : [])]; const lo = Math.min(...vals) - 0.15, hi = Math.max(...vals) + 0.15;
-    const X = t => 34 + (W - 44) * (+new Date(t) - t0) / Math.max(t1 - t0, 1), Y = v => 8 + (H - 30) * (hi - v) / (hi - lo);
-    const linea = (a, col, extra = '') => a.length ? `<polyline fill="none" stroke="${col}" stroke-width="2.4" ${extra} points="${a.map(x => `${X(x[0]).toFixed(1)},${Y(x[1]).toFixed(1)}`).join(' ')}"/>` : '';
-    let s = conLim ? `<rect x="34" y="${Y(lim)}" width="${W - 44}" height="${Math.max(H - 22 - Y(lim), 0)}" fill="#d7262e" opacity=".12"/><line x1="34" x2="${W - 10}" y1="${Y(lim)}" y2="${Y(lim)}" stroke="#d7262e" stroke-dasharray="4 3"/>` : '';
-    for (let v = Math.ceil(lo * 2) / 2; v <= hi; v += 0.5) s += `<text x="2" y="${Y(v) + 4}" font-size="11" fill="currentColor">${num(v, 1)}</text><line x1="34" x2="${W - 10}" y1="${Y(v)}" y2="${Y(v)}" stroke="currentColor" opacity=".12"/>`;
-    s += linea(ast, '#8aa0ad', 'stroke-dasharray="2 3"') + linea(obs, '#0a6fb0') + linea(fut, '#c2188f', 'stroke-dasharray="6 4"');
-    const ahora = ultimo(obs); if (ahora) s += `<circle cx="${X(ahora[0])}" cy="${Y(ahora[1])}" r="4" fill="#0a6fb0"/>`;
-    caja.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Altura en San Fernando">${s}</svg>`;
+    const ahora = Date.now(), t0 = ahora - ANTES_H * 3600e3, t1 = ahora + DESPUES_H * 3600e3;
+    const pred = prediccionDe(z, est, t0, t1), uy = !!est.notaUY, mvd = z === 'MVD';
+    const real = uy ? [] : (est.observada || []).filter(x => +new Date(x[0]) >= t0);
+    // "con el viento de ahora": predicción + la diferencia de la última lectura, solo las próximas horas
+    const u = ultimo(est.observada), aU = u && pred.find(x => x[0] === u[0]), dif = u && aU ? u[1] - aU[1] : (estimacion(est) || {}).dif || 0;
+    const tU = u ? +new Date(u[0]) : ahora;
+    const viento = mvd || !u ? [] : [...(uy ? (est.observada || []).filter(x => +new Date(x[0]) >= t0) : [u]),
+      ...pred.filter(x => { const t = +new Date(x[0]); return t > tU && t <= tU + EST_H * 3600e3; }).map(x => [x[0], +(x[1] + dif).toFixed(2)])];
+    const c = parseFloat(calado.value) || 0, lim = c - DETERMINANTE + 0.2; // altura mínima para 0,2 m bajo la quilla en el Costanero
+    const todos = [...pred, ...real, ...viento]; if (!todos.length) { caja.innerHTML = '<p class="nota">Sin datos.</p>'; return; }
+    const vals = [...todos.map(x => x[1]), ...(conLim ? [lim] : [])], lo = Math.floor((Math.min(...vals) - 0.1) * 2) / 2, hi = Math.ceil((Math.max(...vals) + 0.1) * 2) / 2;
+    const H = 200, TOP = 16, BOT = H - 34, W = Math.round((t1 - t0) / 3600e3 * PXH) + 16;
+    const X = t => 8 + (+new Date(t) - t0) / 3600e3 * PXH, Y = v => TOP + (BOT - TOP) * (hi - v) / (hi - lo);
+    const linea = (a, col, ancho, extra = '') => a.length > 1 ? `<polyline fill="none" stroke="${col}" stroke-width="${ancho}" stroke-linejoin="round" ${extra} points="${a.map(x => `${X(x[0]).toFixed(1)},${Y(x[1]).toFixed(1)}`).join(' ')}"/>` : '';
+    let g = '', eje = '';
+    for (let v = lo; v <= hi + 1e-9; v += 0.5) { g += `<line x1="0" x2="${W}" y1="${Y(v)}" y2="${Y(v)}" stroke="currentColor" opacity=".12"/>`; eje += `<text x="26" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="currentColor">${num(v, 1)}</text>`; }
+    if (conLim) g += `<rect x="0" y="${Y(lim)}" width="${W}" height="${Math.max(BOT - Y(lim), 0)}" fill="#d7262e" opacity=".10"/><line x1="0" x2="${W}" y1="${Y(lim)}" y2="${Y(lim)}" stroke="#d7262e" stroke-dasharray="4 3"/>`;
+    // horas abajo (cada 3 h) y días (a las 00)
+    for (let t = Math.ceil(t0 / 3600e3) * 3600e3; t <= t1; t += 3600e3) {
+      const d = new Date(t), h = d.getHours(), x = X(t);
+      if (h === 0) {
+        g += `<line x1="${x}" x2="${x}" y1="${TOP - 6}" y2="${BOT}" stroke="currentColor" opacity=".45"/><text x="${x + 3}" y="${H - 4}" font-size="12" font-weight="700" fill="currentColor">${esc(d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' }))}</text>`;
+      } else if (h % 3 === 0) g += `<line x1="${x}" x2="${x}" y1="${TOP}" y2="${BOT}" stroke="currentColor" opacity=".08"/>`;
+      if (h % 3 === 0) g += `<text x="${x}" y="${BOT + 14}" text-anchor="middle" font-size="11" fill="currentColor" opacity=".85">${String(h).padStart(2, '0')}</text>`;
+    }
+    const xa = X(ahora);
+    g += `<line x1="${xa}" x2="${xa}" y1="${TOP - 8}" y2="${BOT}" stroke="#ffd400" stroke-width="2"/><text x="${xa + 4}" y="${TOP - 4}" font-size="11" font-weight="700" fill="currentColor">ahora</text>`;
+    g += linea(pred, COL_PRED, 2) + linea(viento, COL_VIENTO, 2.4, 'stroke-dasharray="6 4"') + linea(real, COL_REAL, 3.2);
+    // pleamares y bajamares de la predicción: la altura escrita
+    for (let i = 1; i + 1 < pred.length; i++) {
+      const [a, b, cc] = [pred[i - 1][1], pred[i][1], pred[i + 1][1]], max = b > a && b >= cc, min = b < a && b <= cc;
+      if (max || min) g += `<text x="${X(pred[i][0])}" y="${Y(b) + (max ? -6 : 15)}" text-anchor="middle" font-size="11" font-weight="600" fill="${COL_PRED}">${num(b, 1)}</text>`;
+    }
+    const ur = ultimo(real); if (ur) g += `<circle cx="${X(ur[0])}" cy="${Y(ur[1])}" r="4.5" fill="${COL_REAL}" stroke="#fff" stroke-width="1.5"/>`;
+    const fuente = EST_SHN[z] ? 'SHN' : 'SOHMA', ley = [
+      real.length ? [COL_REAL, '', `Real (${fuente})`] : null,
+      [COL_PRED, '', `Predicción ${fuente}`],
+      viento.length ? [COL_VIENTO, 'stroke-dasharray="6 4"', uy ? 'Estimada con el viento' : 'Con el viento de ahora'] : null,
+      conLim ? ['#d7262e', 'stroke-dasharray="4 3"', 'No pasás el Costanero'] : null].filter(Boolean);
+    const sc = caja.querySelector('.c-scroll'), izq = sc ? sc.scrollLeft : null;
+    caja.innerHTML = `<div class="c-graf"><svg class="c-eje" width="30" height="${H}" aria-hidden="true">${eje}</svg>
+      <div class="c-scroll scroll"><svg width="${W}" height="${H}" role="img" aria-label="Altura del río: real y predicción">${g}</svg></div></div>
+      <div class="c-ley">${ley.map(([col, da, t]) => `<span><svg width="22" height="8"><line x1="0" x2="22" y1="4" y2="4" stroke="${col}" stroke-width="3" ${da}/></svg>${esc(t)}</span>`).join('')}</div>`;
+    const nsc = caja.querySelector('.c-scroll');
+    caja._alAhora = () => { nsc.scrollLeft = Math.max(0, xa - nsc.clientWidth * 0.3); };
+    if (izq != null && izq > 0) nsc.scrollLeft = izq; else caja._alAhora();
   };
-  if (!caja._ro) { caja._ro = new ResizeObserver(dibujar); caja._ro.observe(caja); }
   caja._dibujar = dibujar; dibujar();
 }
 
@@ -1183,7 +1258,8 @@ zonaSel.onchange = () => { guardar('zonaMarea', zonaSel.value); pintarBarraMarea
 function pintarCurva() {
   const z = zonaSel.value, est = sit && sit.mareografos && sit.mareografos[z]; if (!est) return;
   $('#tituloCurva').textContent = 'Altura · ' + zonaSel.selectedOptions[0].textContent;
-  curva(est, estimacion(est), z === 'SFER');
+  pedirAstroLargo(z);
+  curva(z, est, z === 'SFER');
 }
 function pintarBarraMarea() {
   const z = zonaSel.value, b = $('#barraMarea'), sf = sit && sit.mareografos && sit.mareografos[z], a = alturaAhora(sf), u = a && [a.t, a.h];
@@ -1200,7 +1276,7 @@ function pintarBarraMarea() {
   $('#mHora').textContent = m && m[2] ? m[2] : '';
   b.title = `${txtAltura(a, zonaSel.selectedOptions[0].textContent)} · tocá para ver las mareas`;
 }
-function abrirMarea() { abrirPanel(false); $('#hojaViento').hidden = true; $('#hojaMarea').hidden = false; const c = $('#curvaSF'); c._dibujar && c._dibujar(); cargarCorriente(); }
+function abrirMarea() { abrirPanel(false); $('#hojaViento').hidden = true; $('#hojaMarea').hidden = false; const c = $('#curvaSF'); c._dibujar && c._dibujar(); c._alAhora && c._alAhora(); cargarCorriente(); }
 /* Corriente: modelo oceánico global (Open-Meteo Marine, celda ~8 km): orientativa */
 let corrT = 0;
 async function cargarCorriente() {
