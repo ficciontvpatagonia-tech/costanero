@@ -338,6 +338,42 @@ function dibujarPasoMitre() {
   }).catch(() => {});
 }
 
+/* ---------- Boyas oficiales de los canales troncales (Vías Navegables / AGP): Emilio Mitre, Paraná de las Palmas, Acceso ---------- */
+const SECTOR = { 'MITRE': 'Emilio Mitre', 'P.PALMAS': 'Paraná de las Palmas', 'BROWN': 'Canal Brown', 'R.D.LA PLATA': 'Río de la Plata', 'ESPECIALES': '' };
+let senalesVNT = [];
+fetch('datos/senales_vnt.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
+  senalesVNT = d.senales;
+  for (const x of d.senales) {
+    const col = (x.c || [])[0] || '';
+    const k = x.f === 'LATERAL' ? (col.toUpperCase() === '#960018' ? 'roja' : 'verde') : x.f === 'PELIGRO' ? 'peligro' : x.f === 'C. PREFER.' ? 'bif' : 'especial';
+    const nom = `Km ${String(x.km).replace('.', ',')}`, sec = SECTOR[x.sec] ?? x.sec;
+    ficha(L.marker([x.lat, x.lon], { icon: iconoBoya({ k }), title: `${sec} ${nom}` }), x.lat, x.lon, `${nom}${sec ? ' · ' + sec : ''}`, NOMBRE_TIPO[k]).addTo(capaBoyas);
+    L.marker([x.lat, x.lon], { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya" style="transform:translate(12px,-22px)">${esc(nom)}</div>`, iconSize: [0, 0] }) }).addTo(etBoyas);
+  }
+  dibujarPasillo();
+}).catch(() => {});
+
+/* Pasillo del paso seguro del Mitre: franja entre las zonas de refulado, desde el canal (Km 25,2 – Km 23) paralela a la enfilación UNEN B → UNEN A */
+let capaPasillo = null;
+function dibujarPasillo() {
+  const B = Object.fromEntries(boyas.map(b => [b.name, b])), a = B['UNEN A'], b = B['UNEN B'];
+  const bm = (km, s) => senalesVNT.find(x => x.sec === 'MITRE' && +x.km === km && x.s === s);
+  const r252 = bm(25.2, 'BRL'), v252 = bm(25.2, 'BVL'), r23 = bm(23, 'BRL'), v23 = bm(23, 'BVL');
+  if (!a || !b || !r252 || !r23 || !v252 || !v23) return;
+  const k = Math.cos(rad(-34.5)), M = 111320;
+  const dx = (a.lon - b.lon) * k * M, dy = (a.lat - b.lat) * M, n = Math.hypot(dx, dy), ux = dx / n, uy = dy / n;
+  const largo = ((a.lon - r252.lon) * k * M) * ux + ((a.lat - r252.lat) * M) * uy + 600; // hasta pasar UNEN A
+  const mover = (p, m) => [p.lat + uy * m / M, p.lon + ux * m / (k * M)];
+  // de boya a boya atravesando el canal (verde → roja) y de ahí hacia UNEN B / UNEN A
+  const p0 = [v252.lat, v252.lon], p1 = [r252.lat, r252.lon], p2 = mover(r252, largo), p4 = [r23.lat, r23.lon], p3 = mover(r23, largo), p5 = [v23.lat, v23.lon];
+  if (capaPasillo) capaPasillo.remove();
+  capaPasillo = L.layerGroup([
+    L.polygon([p0, p1, p2, p3, p4, p5], { pane: 'ruta', stroke: false, fillColor: '#ff7a00', fillOpacity: 0.14, interactive: false }),
+    L.polyline([p0, p1, p2], { pane: 'ruta', color: '#d7262e', weight: 2, dashArray: '6 5', interactive: false }),
+    L.polyline([p5, p4, p3], { pane: 'ruta', color: '#d7262e', weight: 2, dashArray: '6 5', interactive: false }),
+  ]).addTo(mapa);
+}
+
 /* ---------- GPS ---------- */
 let marcaBarco = null, precision = null, seguir = leer('seguir', false), watchId = null;
 const iconoBarco = rumboDeg => L.divIcon({ // en pantalla: rumbo real + giro del mapa
