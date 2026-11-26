@@ -15,6 +15,8 @@ lin = lambda g: LineString([(p["lon"], p["lat"]) for p in g])
 
 
 def poligonos(e):
+    if any(p is None for p in e.get("geometry", []) or []) or any(p is None for m in e.get("members", []) for p in (m.get("geometry") or [])):
+        return []  # recortado por la caja (ríos enteros): no es una dársena
     if e["type"] == "way" and len(e.get("geometry", [])) > 3:
         return [Polygon([(p["lon"], p["lat"]) for p in e["geometry"]]).buffer(0)]
     if e["type"] == "relation":
@@ -24,7 +26,7 @@ def poligonos(e):
 
 
 sal = []
-for archivo in ("datos/osm_costa_si.json", "datos/osm_puerto.json"):
+for archivo in ("datos/osm_costa_si.json", "datos/osm_puerto.json", "datos/osm_san_fernando.json"):
     el = json.load(open(R / archivo))["elements"]
     rdlp = unary_union([p for e in el if e.get("tags", {}).get("name") == "Río de la Plata" for p in poligonos(e)])
     for e in el:
@@ -36,13 +38,15 @@ for archivo in ("datos/osm_costa_si.json", "datos/osm_puerto.json"):
             if p.is_empty or p.area > 2e-5:  # nada más grande que ~0,2 km² (no son dársenas)
                 continue
             # sin etiqueta de marina: solo si es agua pegada al río (dársena de club), no un río ni un estanque
-            if not marina and (t.get("water") == "river" or rdlp.is_empty or p.distance(rdlp) > 0.003):
+            luján = archivo.endswith("san_fernando.json")  # costa del Luján: las dársenas de club vienen como agua sin tipo
+            if not marina and (t.get("water") == "river" or (not luján and (rdlp.is_empty or p.distance(rdlp) > 0.003))):
                 continue
             sal.append(p)
 # dársenas que OSM dibuja solo con la costa (entrante del agua, sin polígono propio; ej. Centro Naval):
 # "bolsillos" de agua que se cierran si se engorda la tierra ~130 m
 from shapely.geometry import shape, box
 carta = json.load(open(R / "docs/datos/carta.geojson"))["features"]
+# sin San Fernando: el Luján es angosto y se "cerraría" como si fuera dársena
 tierra_osm = unary_union([shape(f["geometry"]) for f in carta if f["properties"].get("fuente") in ("OSM San Isidro-Núñez", "OSM puerto")]).buffer(0)
 r = 0.0016  # ~160 m: cierra bocas de hasta ~300 m (Puerto Olivos, Puerto Núñez)
 cerrada = tierra_osm.buffer(r, join_style=2).buffer(-r, join_style=2)

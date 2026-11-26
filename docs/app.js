@@ -232,7 +232,7 @@ fetch('datos/boyas.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
   }
   etiquetasSegunZoom();
   dibujarRuta();
-  armarCorredor(); dibujarNoPasa(); dibujarPasoMitre(); capaSond.redraw(); // sin sondajes viejos dentro del Costanero
+  armarCorredor(); armarCanales(); dibujarNoPasa(); dibujarPasoMitre(); capaSond.redraw(); // sin sondajes viejos dentro del Costanero
 });
 mapa.on('zoomend', etiquetasSegunZoom);
 
@@ -293,6 +293,37 @@ function armarCorredor() {
   const verdes = ['KM 24 (Verde)', 'KM 23 VERDE', 'KM 22 VERDE', 'KM 21 VERDE', 'KM 20.2 VERDE EX C2', 'KM 19.3 EX C1'].map(n => B[n]).filter(Boolean);
   corredor = rojas.length > 2 && verdes.length > 2 ? [...rojas, ...verdes.reverse()].map(b => [b.lon, b.lat]) : null;
 }
+/* Canales balizados por UNEN donde la carta SHN 2016 quedó vieja: adentro manda la profundidad publicada (como en el Costanero)
+   · boca del Río Luján (Km 23 → Km 24 → Puerto San Isidro → Las Heras): sigue al ex Canal Costanero → determinante 1,20 m
+   · aguaje Rivademar (Km 23 → Rivademar 1, 2, 3 → viga San Antonio): 1 m al cero (relevamiento oct-2020, Barcos/Kalfayan) */
+let canales = [];
+function pasillo(pts, m) { // eje [[lat, lon]...] → franja de ±m metros, anillo [[lon, lat]...]
+  const izq = [], der = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(i - 1, 0)], b = pts[Math.min(i + 1, pts.length - 1)], kx = 111320 * Math.cos(rad(pts[i][0])), ky = 110540;
+    let dx = (b[1] - a[1]) * kx, dy = (b[0] - a[0]) * ky; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+    izq.push([pts[i][1] - dy * m / kx, pts[i][0] + dx * m / ky]); der.push([pts[i][1] + dy * m / kx, pts[i][0] - dx * m / ky]);
+  }
+  return [...izq, ...der.reverse()];
+}
+function dentroAnillo(lon, lat, r) {
+  let dentro = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++)
+    if ((r[i][1] > lat) !== (r[j][1] > lat) && lon < (r[j][0] - r[i][0]) * (lat - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) dentro = !dentro;
+  return dentro;
+}
+function armarCanales() {
+  const B = Object.fromEntries(boyas.map(b => [b.name, [b.lat, b.lon]])), medio = (a, b) => a && b ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] : null;
+  const defs = [
+    { n: 'Boca del Río Luján', min: DETERMINANTE, m: 90, eje: [B['KM 23'], medio(B['KM 24 (Roja)'], B['KM 24 (Verde)']), medio(B['Puerto San Isidro (Roja)'], B['Puerto San Isidro (Verde)']), B['Las Heras']] },
+    { n: 'Aguaje Rivademar', min: 1.0, m: 60, eje: [B['KM 23'], B['RIVADEMAR 1'], B['RIVADEMAR 2'], B['RIVADEMAR 3'], B['RIVADEMAR VIGA SAN ANTONIO']] },
+  ];
+  canales = defs.filter(c => c.eje.every(Boolean)).map(c => {
+    const r = pasillo(c.eje, c.m);
+    return { ...c, r, w: Math.min(...r.map(x => x[0])), e: Math.max(...r.map(x => x[0])), s: Math.min(...r.map(x => x[1])), n: Math.max(...r.map(x => x[1])) };
+  });
+}
+const enCanal = (lon, lat) => canales.find(c => lon >= c.w && lon <= c.e && lat >= c.s && lat <= c.n && dentroAnillo(lon, lat, c.r));
 function enCorredor(lon, lat) {
   if (!corredor) return false;
   let dentro = false;
@@ -350,6 +381,7 @@ function pintarTile(cv, c) {
   });
   const tocaCorredor = corredor && n > -34.475 && s < -34.445 && e > -58.505 && w < -58.465;
   const masc = mascaraDarsenas(w, s, e, n, N, x0, y0);
+  const canT = canales.filter(c => c.e > w && c.w < e && c.n > s && c.s < n);
   for (let j = 0; j < TILE; j++) {
     for (let i = 0; i < TILE; i++) {
       let z = null, hh = 0, wTop = 1, solo = true;
@@ -370,6 +402,8 @@ function pintarTile(cv, c) {
         } else { z = wTop * z + (1 - wTop) * zi; hh = wTop * hh + (1 - wTop) * h[j]; solo = false; break; }
       }
       if (z === null || (masc && masc[(j * TILE + i) * 4 + 3] > 127)) continue;
+      if (canT.length) { const lon = lonDe(x0 + i + 0.5), lat = latDe(y0 + j + 0.5);
+        for (const c of canT) if (z < c.min && lon >= c.w && lon <= c.e && lat >= c.s && lat <= c.n && dentroAnillo(lon, lat, c.r)) z = c.min; }
       if (tocaCorredor && z < DETERMINANTE) {
         const lat = latDe(y0 + j + 0.5), lon = lonDe(x0 + i + 0.5);
         if (lat > -34.475 && lat < -34.445 && lon > -58.505 && lon < -58.465 && enCorredor(lon, lat)) z = DETERMINANTE;
@@ -417,6 +451,7 @@ function pintarSondajes(g, c, N, x0, y0) {
     const py = (1 - Math.log(Math.tan(Math.PI / 4 + rad(la) / 2)) / Math.PI) / 2 * N - y0; if (py < -M || py > TILE + M) continue;
     if (corredor && la > -34.475 && la < -34.445 && lo > -58.505 && lo < -58.465 && enCorredor(lo, la)) continue;
     if (darsenas.length && enDarsena(la, lo)) continue;
+    if (canales.length && enCanal(lo, la)) continue; // sondaje viejo dentro de un canal balizado
     const ent = String(Math.floor(z + 1e-6)), dec = String(Math.round((z - Math.floor(z + 1e-6)) * 10) % 10);
     g.font = `italic 600 ${T1}px Barlow, sans-serif`;
     g.textAlign = 'right'; g.strokeText(ent, px + 1, py + T1 * 0.35); g.fillText(ent, px + 1, py + T1 * 0.35);
@@ -441,7 +476,7 @@ nuevoPanel('gradiente', 240);
 const capaProf = new CapaProf({ pane: 'gradiente', tileSize: TILE, updateWhenZooming: false, keepBuffer: 1 }).addTo(mapa);
 let claveProf = '';
 function dibujarNoPasa() { // repinta solo si cambió algo que se ve (altura, calado, día/noche, grillas, corredor)
-  const k = [calado.value, modo(), paleta, profs.length, corredor ? 1 : 0, alturaRio(LAT_SF).toFixed(2), alturaRio(LAT_BA).toFixed(2), profs.some(p => p.ref === 'colonia') ? alturaColonia().toFixed(2) : ''].join('|');
+  const k = [calado.value, modo(), paleta, profs.length, corredor ? 1 : 0, canales.length, alturaRio(LAT_SF).toFixed(2), alturaRio(LAT_BA).toFixed(2), profs.some(p => p.ref === 'colonia') ? alturaColonia().toFixed(2) : ''].join('|');
   if (k !== claveProf) { claveProf = k; capaProf.repintar(); }
 }
 function cargarGrilla(url, prio = 2, fundir = false) {
