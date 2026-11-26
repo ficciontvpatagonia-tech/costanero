@@ -259,3 +259,16 @@ input.renombrar{width:100%;font:600 17px/1.2 "Barlow Condensed",sans-serif;paddi
 .ley-sond{display:inline-block;width:28px;flex:none;text-align:center;font:italic 600 15px Barlow,sans-serif}.ley-sond sub{font-size:10px}
 .capas-op.colores{align-items:center}.capas-op.colores span{flex:0 0 auto;font-weight:600;color:var(--sub);margin-right:2px}.capas-op.colores button{flex:1 1 90px}
 .capas-op.colores+.capas-op{border-top:0;padding-top:0;margin-top:8px}.capas-op.colores span{min-width:68px}
+/* ☰ arriba a la izquierda; hoja de ajustes (⚙): títulos y una fila de botones por sección */
+.btn-menu{position:fixed;z-index:500;left:max(12px,env(safe-area-inset-left));top:calc(62px + env(safe-area-inset-top))}
+.hoja-ajustes{padding-top:30px}
+.aj-tit{margin:12px 0 6px;font:600 15px/1.2 "Barlow Condensed",sans-serif;letter-spacing:.04em;text-transform:uppercase;color:var(--sub)}
+.aj-op{display:flex;gap:8px}
+.aj-op button{flex:1 1 0;min-height:44px;padding:6px 8px;border-radius:8px;border:1px solid var(--linea);background:var(--bg2);color:var(--ink);font-weight:600;font-size:15px}
+.aj-op button[aria-pressed=true]{background:var(--instr);color:#fff;border-color:var(--ambar)}
+.aj-calado{display:flex;align-items:center;gap:8px;font-weight:600;font-size:17px}
+.aj-calado input{width:96px;font-size:18px;padding:6px 10px;border-radius:8px;border:1px solid var(--linea);background:var(--bg2);text-align:right;min-height:44px}
+/* Mínima (navegación nocturna): todo negro; solo contornos, rumbo y derrotas tenues */
+#mapa.minima .leaflet-etiquetas-pane,#mapa.minima .leaflet-gradiente-pane,#mapa.minima .leaflet-sondajes-pane{display:none}
+#mapa.minima .leaflet-ruta-pane{opacity:.4}
+#mapa.minima .leaflet-marker-pane .toque{opacity:.5}

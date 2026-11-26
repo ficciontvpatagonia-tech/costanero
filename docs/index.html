@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=95">
+<link rel="stylesheet" href="estilo.css?v=96">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -43,8 +43,22 @@
   <button class="btn-r btn-orient" id="btnOrient" title="Norte arriba / Rumbo arriba" aria-label="Cambiar orientación del mapa"><span id="orientIco">N</span><small id="orientTxt">norte</small></button>
   <button class="btn-r btn-orient" id="btnPantalla" title="Mantener la pantalla encendida" aria-label="Mantener la pantalla encendida" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg><small id="pantTxt">pantalla</small></button>
   <button class="btn-r btn-orient btn-rec" id="btnRec" title="Grabar recorrido" aria-label="Grabar recorrido" aria-pressed="false"><span class="rec-punto"></span><small id="recTxt">grabar</small></button>
-  <button class="btn-r" id="btnPanel" title="Situación del río" aria-label="Abrir panel">☰</button>
+  <button class="btn-r btn-orient" id="btnAjustes" title="Ajustes: calado, pantalla, colores" aria-label="Ajustes" aria-pressed="false"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg><small>ajustes</small></button>
 </div>
+<button class="btn-r btn-menu" id="btnPanel" title="Situación del río" aria-label="Abrir panel">☰</button>
+
+<aside class="hoja-marea hoja-ajustes" id="hojaAjustes" aria-label="Ajustes" hidden>
+  <div class="agarre" aria-hidden="true"></div>
+  <button class="cerrar" id="cerrarAjustes" aria-label="Cerrar">×</button>
+  <h3 class="aj-tit">Calado</h3>
+  <div class="aj-op"><label class="aj-calado"><input id="calado" type="number" inputmode="decimal" min="0.3" max="4" step="0.05" value="1.50"> m</label></div>
+  <h3 class="aj-tit">Pantalla</h3>
+  <div class="aj-op"><button data-tema="dia" aria-pressed="false">Día</button><button data-tema="noche" aria-pressed="false">Noche</button><button data-tema="auto" aria-pressed="true">Auto</button></div>
+  <h3 class="aj-tit">Colores</h3>
+  <div class="aj-op"><button data-paleta="clasica" aria-pressed="true">Clásica</button><button data-paleta="plotter" aria-pressed="false">Plotter</button><button data-paleta="minima" aria-pressed="false">Mínima</button></div>
+  <h3 class="aj-tit">En el mapa</h3>
+  <div class="aj-op"><button id="btnCoords" aria-pressed="false">Mostrar coordenadas</button><button id="btnSond" aria-pressed="false">Mostrar profundidades</button></div>
+</aside>
 
 <div class="alertas aviso-inicio" id="avisoInicio" role="alertdialog" aria-labelledby="avisoInicioT">
   <strong id="avisoInicioT">Aviso</strong>
@@ -72,7 +86,6 @@
   <div class="agarre" aria-hidden="true"></div>
   <button class="cerrar" id="cerrarMarea" aria-label="Cerrar">×</button>
   <div class="m-sel">
-    <label>Calado <input id="calado" type="number" inputmode="decimal" min="0.3" max="4" step="0.05" value="1.50"> m</label>
     <select id="zonaMarea" aria-label="Zona del río"><option value="SFER">San Isidro</option><option value="BSAS">Puerto de Buenos Aires</option><option value="PNOR">Pilote Norden</option><option value="MAGA">Martín García</option><option value="LPLA">La Plata</option><option value="COLO">Colonia</option><option value="MVD">Montevideo</option></select>
   </div>
   <div class="semaforo" id="semaforo">
@@ -159,16 +172,13 @@
       <li><i style="background:#00d5ff"></i>Recorrido grabado</li>
       <li><i style="background:#0b2a3c;border-radius:50%"></i>Clubes y amarras</li>
     </ul>
-    <div class="capas-op colores"><span>Pantalla</span><button data-tema="auto" aria-pressed="true">Auto</button><button data-tema="dia" aria-pressed="false">Día</button><button data-tema="noche" aria-pressed="false">Noche</button></div>
-    <div class="capas-op colores"><span>Colores</span><button data-paleta="clasica" aria-pressed="true">Clásica</button><button data-paleta="plotter" aria-pressed="false">Plotter</button></div>
-    <div class="capas-op"><button id="btnCoords" aria-pressed="false">Mostrar coordenadas</button><button id="btnSond" aria-pressed="false">Mostrar profundidades</button></div>
-    <p class="firma">Creado por Martín Subirá · versión 1.12.0 Beta</p>
+    <p class="firma">Creado por Martín Subirá · versión 1.13.0 Beta</p>
     <p class="firma">Contacto: <a href="mailto:hola@globalpatagonia.org">hola@globalpatagonia.org</a></p>
   </section>
 </aside>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=95"></script>
+<script src="app.js?v=96"></script>
 </body>
 </html>

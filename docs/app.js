@@ -46,6 +46,10 @@ const PALETAS = {
   plotter: {
     dia:   { agua: '#7dd3e2', profunda: '#c9eef5', seca: '#56a891', tierra: '#f3bf6d', borde: '#00000040', grilla: '#c2188f', grad: [[79, 194, 215], [205, 240, 247]] },
     noche: { agua: '#1c5866', profunda: '#2d7584', seca: '#2c5a4d', tierra: '#7a5a2c', borde: '#ffffff30', grilla: '#e05bb7', grad: [[22, 86, 102], [58, 136, 152]] } },
+  // mínima: navegación nocturna, todo negro; solo el contorno de la costa y de los bancos que se secan
+  minima: {
+    dia:   { agua: '#000', profunda: '#000', seca: '#000', tierra: '#000', borde: '#8fa3ae', grilla: '#26353e', grad: [[0, 0, 0], [0, 0, 0]] },
+    noche: { agua: '#000', profunda: '#000', seca: '#000', tierra: '#000', borde: '#8fa3ae', grilla: '#26353e', grad: [[0, 0, 0], [0, 0, 0]] } },
 };
 let paleta = PALETAS[leer('paleta', 'clasica')] ? leer('paleta', 'clasica') : 'clasica';
 const PALETA = { get dia() { return PALETAS[paleta].dia; }, get noche() { return PALETAS[paleta].noche; } };
@@ -54,19 +58,33 @@ const modo = () => { const t = document.documentElement.dataset.theme; return t 
 const col = k => PALETA[modo()][k];
 let capasCarta = [];
 // la tierra sin contorno: donde se juntan cartas (Colonia SOHMA, OSM, recuadros) el contorno dibujaba líneas rectas sobre tierra
-const estiloZona = f => ({ stroke: f.properties.z === 'seca', color: col('borde'), weight: 0.6,
-  fillColor: col(f.properties.z) || col('agua'), fillOpacity: 1 });
+const estiloZona = f => paleta === 'minima'
+  ? { stroke: f.properties.z === 'tierra' || f.properties.z === 'seca', color: col('borde'), weight: 2.2, fillColor: '#000', fillOpacity: 1 }
+  : { stroke: f.properties.z === 'seca', color: col('borde'), weight: 0.6, fillColor: col(f.properties.z) || col('agua'), fillOpacity: 1 };
+// Mínima: la tierra se vuelve a rellenar encima (sin contorno): así solo queda la línea de costa, no las uniones entre cartas
+const cartasCargadas = []; let capasRelleno = [];
+function rehacerRelleno() {
+  capasRelleno.forEach(l => l.remove());
+  capasRelleno = paleta !== 'minima' ? [] : cartasCargadas.map(gj => L.geoJSON(gj, { pane: 'tierra', renderer: lienzoTierra, interactive: false,
+    filter: f => f.properties.z === 'tierra' || f.properties.z === 'seca', style: { stroke: false, fillColor: '#000', fillOpacity: 1 } }).addTo(mapa));
+}
 nuevoPanel('tierra', 260); // la tierra siempre arriba del degradé y del rayado
 const lienzoTierra = L.canvas({ pane: 'tierra', padding: 0.5 });
 function agregarCarta(gj) {
   const esTierra = f => f.properties.z === 'tierra' || f.properties.z === 'seca';
   capasCarta.push(L.geoJSON(gj, { pane: 'carta', renderer: lienzoCarta, interactive: false, style: estiloZona, filter: f => !esTierra(f) }).addTo(mapa));
   capasCarta.push(L.geoJSON(gj, { pane: 'tierra', renderer: lienzoTierra, interactive: false, style: estiloZona, filter: esTierra }).addTo(mapa));
+  cartasCargadas.push(gj); if (paleta === 'minima') rehacerRelleno();
 }
 fetch('datos/carta.geojson').then(r => r.json()).then(agregarCarta).catch(() => {});
 // repinta todo lo que depende de los colores (cambio día/noche del teléfono o de juego de colores en Info)
 function aplicarColores() {
-  const r = document.documentElement.style;
+  const r = document.documentElement.style, min = paleta === 'minima';
+  if (typeof aplicarTema === 'function' && typeof tema !== 'undefined') aplicarTema(); // Mínima fuerza la interfaz oscura
+  document.getElementById('mapa').classList.toggle('minima', min);
+  if (typeof capaProf !== 'undefined') { if (min) capaProf.remove(); else if (!mapa.hasLayer(capaProf)) capaProf.addTo(mapa); }
+  if (typeof capaSond !== 'undefined') { if (min) capaSond.remove(); else if (verSond && !mapa.hasLayer(capaSond)) capaSond.addTo(mapa); }
+  rehacerRelleno();
   if (paleta === 'clasica') ['--tierra', '--seca', '--agua', '--honda', '--grad'].forEach(v => r.removeProperty(v));
   else { r.setProperty('--tierra', col('tierra')); r.setProperty('--seca', col('seca')); r.setProperty('--agua', col('agua')); r.setProperty('--honda', col('profunda')); }
   const g = col('grad'); r.setProperty('--grad', `linear-gradient(90deg,rgb(${g[0]}),rgb(${g[1]}))`);
@@ -745,7 +763,7 @@ function dibujarDestino() {
 
 /* ---------- Panel ---------- */
 const panel = $('#panel');
-const abrirPanel = v => { if (v) { $('#hojaViento').hidden = true; $('#hojaMarea').hidden = true; } panel.classList.toggle('abierto', v); document.body.classList.toggle('con-panel', v); guardar('panel', v); };
+const abrirPanel = v => { if (v) { $('#hojaViento').hidden = true; $('#hojaMarea').hidden = true; $('#hojaAjustes').hidden = true; $('#btnAjustes').setAttribute('aria-pressed', false); } panel.classList.toggle('abierto', v); document.body.classList.toggle('con-panel', v); guardar('panel', v); };
 $('#btnPanel').onclick = () => abrirPanel(!panel.classList.contains('abierto'));
 $('#cerrarPanel').onclick = () => abrirPanel(false);
 if (leer('panel', innerWidth > 900)) abrirPanel(true);
@@ -1198,7 +1216,7 @@ function abrirViento() {
   const ref = posGps || mapa.getCenter();
   let mejor = null; for (const [k, p] of Object.entries(PUNTOS)) { const d = distM(ref, L.latLng(p.lat, p.lon)); if (!mejor || d < mejor[1]) mejor = [k, d]; }
   if (mejor) { sel.value = mejor[0]; guardar('puntoViento', mejor[0]); }
-  abrirPanel(false); $('#hojaMarea').hidden = true;
+  abrirPanel(false); $('#hojaMarea').hidden = true; abrirAjustes(false);
   $('#hojaViento').hidden = false;
   cargarViento(true);
 }
@@ -1404,7 +1422,7 @@ function pintarBarraMarea() {
   $('#mHora').textContent = m && m[2] ? m[2] : '';
   b.title = `${txtAltura(a, zonaSel.selectedOptions[0].textContent)} · tocá para ver las mareas`;
 }
-function abrirMarea() { abrirPanel(false); $('#hojaViento').hidden = true; $('#hojaMarea').hidden = false; const c = $('#curvaSF'); c._dibujar && c._dibujar(); c._alAhora && c._alAhora(); pedirAstroLargo(zonaSel.value); cargarCorriente(); }
+function abrirMarea() { abrirPanel(false); $('#hojaViento').hidden = true; abrirAjustes(false); $('#hojaMarea').hidden = false; const c = $('#curvaSF'); c._dibujar && c._dibujar(); c._alAhora && c._alAhora(); pedirAstroLargo(zonaSel.value); cargarCorriente(); }
 /* Corriente: modelo oceánico global (Open-Meteo Marine, celda ~8 km): orientativa */
 let corrT = 0;
 async function cargarCorriente() {
@@ -1425,6 +1443,13 @@ async function cargarCorriente() {
 $('#barraMarea').onclick = abrirMarea;
 $('#barraMarea').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirMarea(); } };
 $('#cerrarMarea').onclick = () => { $('#hojaMarea').hidden = true; };
+function abrirAjustes(abrir) {
+  const h = $('#hojaAjustes'); abrir = abrir ?? h.hidden;
+  if (abrir) { abrirPanel(false); $('#hojaMarea').hidden = true; $('#hojaViento').hidden = true; }
+  h.hidden = !abrir; $('#btnAjustes').setAttribute('aria-pressed', abrir);
+}
+$('#btnAjustes').onclick = () => abrirAjustes();
+$('#cerrarAjustes').onclick = () => abrirAjustes(false);
 pintarBarraMarea();
 /* Hojas de viento y marea: se cierran arrastrando hacia abajo con un dedo */
 function arrastrable(hoja, cerrar, habilitado) {
@@ -1446,7 +1471,7 @@ function arrastrable(hoja, cerrar, habilitado) {
     y0 = null; activo = false;
   });
 }
-arrastrable($('#hojaMarea')); arrastrable($('#hojaViento'));
+arrastrable($('#hojaMarea')); arrastrable($('#hojaViento')); arrastrable($('#hojaAjustes'), () => abrirAjustes(false));
 /* Info: mostrar/ocultar coordenadas (grilla de lat/lon) y profundidades de la carta (sondajes) */
 function pintarBotonesCapas() {
   const bc = $('#btnCoords'), bs = $('#btnSond');
@@ -1460,9 +1485,9 @@ document.querySelectorAll('[data-paleta]').forEach(b => b.onclick = () => { pale
 function pintarBotonesPaleta() { document.querySelectorAll('[data-paleta]').forEach(b => b.setAttribute('aria-pressed', b.dataset.paleta === paleta)); }
 // Pantalla: Auto (como el teléfono) · Día · Noche — así se pueden usar los colores de día aunque el teléfono esté en modo oscuro
 let tema = ['auto', 'dia', 'noche'].includes(leer('tema', 'auto')) ? leer('tema', 'auto') : 'auto';
-function aplicarTema() { const d = document.documentElement.dataset; if (tema === 'auto') delete d.theme; else d.theme = tema === 'dia' ? 'light' : 'dark';
+function aplicarTema() { const d = document.documentElement.dataset; if (paleta === 'minima') d.theme = 'dark'; else if (tema === 'auto') delete d.theme; else d.theme = tema === 'dia' ? 'light' : 'dark';
   document.querySelectorAll('[data-tema]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tema === tema)); }
-document.querySelectorAll('[data-tema]').forEach(b => b.onclick = () => { tema = b.dataset.tema; guardar('tema', tema); aplicarTema(); aplicarColores(); });
+document.querySelectorAll('[data-tema]').forEach(b => b.onclick = () => { tema = b.dataset.tema; guardar('tema', tema); if (paleta === 'minima') { paleta = 'clasica'; guardar('paleta', paleta); pintarBotonesPaleta(); } aplicarTema(); aplicarColores(); });
 aplicarTema(); pintarBotonesPaleta(); aplicarColores();
 arrastrable($('#panel'), () => abrirPanel(false), () => innerWidth <= 700);
 if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__dbg = { dibujarNoPasa, profs, get sit() { return sit; } }; // solo pruebas locales
