@@ -306,6 +306,7 @@ fetch('datos/referencias.json', { cache: 'no-cache' }).then(r => r.json()).then(
   for (const r of d.referencias) {
     const p = L.latLng(r.lat, r.lon);
     const mk = ficha(L.marker(p, { icon: iconoBoya({ k: r.tipo || 'peligro' }), title: r.n }), r.lat, r.lon, r.n, r.nota).addTo(capaBoyas);
+    if (r.radio) L.circle(p, { radius: r.radio, pane: 'ruta', color: '#d7262e', weight: 2, dashArray: '6 5', fillColor: '#d7262e', fillOpacity: 0.12, interactive: false }).addTo(mapa);
     L.marker(p, { pane: 'etiquetas', interactive: true, bubblingMouseEvents: false, icon: L.divIcon({ className: '', html: `<div class="et-boya et-destacada" style="transform:translate(12px,-22px)">${esc(r.n)}</div>`, iconSize: [0, 0] }) }).on('click', () => mk.openPopup()).addTo(etDestacadas);
   }
 }).catch(() => {});
@@ -409,7 +410,7 @@ fetch('datos/puerto.json', { cache: 'no-cache' }).then(r => r.json()).then(d => 
   for (const a of d.areas) {
     L.polygon(a.c, { pane: 'ruta', color: '#d7262e', weight: 2, dashArray: '6 5', fillColor: '#d7262e', fillOpacity: 0.12, interactive: false }).addTo(mapa);
     const cx = a.c.reduce((s, p) => [s[0] + p[0] / a.c.length, s[1] + p[1] / a.c.length], [0, 0]);
-    L.marker(cx, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-zona" style="transform:translate(-50%,-50%)">${esc(a.n)}</div>`, iconSize: [0, 0] }) }).addTo(mapa);
+    L.marker(cx, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-zona" style="transform:translate(-50%,-50%)">${esc(a.n.replace(/\s*\(.*\)/, ""))}</div>`, iconSize: [0, 0] }) }).addTo(mapa);
   }
   for (const b of d.boyas) ficha(L.marker([b.lat, b.lon], { icon: iconoBoya({ k: b.k }), title: b.n }), b.lat, b.lon, b.n, NOMBRE_TIPO[b.k]).addTo(capaBoyas);
   // escolleras (OSM): trazo de piedra sobre la tierra y el agua
