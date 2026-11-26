@@ -8,8 +8,9 @@ const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } 
 const leer = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch (e) { return d; } };
 
 /* ---------- Formatos náuticos ---------- */
-const fmtLat = lat => { const a = Math.abs(lat), g = Math.floor(a), m = (a - g) * 60; return `${g}°${m.toFixed(3).replace('.', ',')}' ${lat < 0 ? 'S' : 'N'}`; };
-const fmtLon = lon => { const a = Math.abs(lon), g = Math.floor(a), m = (a - g) * 60; return `${String(g).padStart(3, '0')}°${m.toFixed(3).replace('.', ',')}' ${lon < 0 ? 'W' : 'E'}`; };
+const gm = v => { const a = Math.abs(v); let g = Math.floor(a), m = +((a - g) * 60).toFixed(3); if (m >= 60) { g++; m = 0; } return [g, m]; }; // sin "59,9999…" → "60'"
+const fmtLat = lat => { const [g, m] = gm(lat); return `${g}°${m.toFixed(3).replace('.', ',')}' ${lat < 0 ? 'S' : 'N'}`; };
+const fmtLon = lon => { const [g, m] = gm(lon); return `${String(g).padStart(3, '0')}°${m.toFixed(3).replace('.', ',')}' ${lon < 0 ? 'W' : 'E'}`; };
 const R_T = 6371000;
 const rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI;
 function distM(a, b) { const dLa = rad(b.lat - a.lat), dLo = rad(b.lng - a.lng); const h = Math.sin(dLa/2)**2 + Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLo/2)**2; return 2*R_T*Math.asin(Math.sqrt(h)); }
@@ -21,7 +22,7 @@ const num = (v, d = 2) => v == null || isNaN(v) ? '—' : Number(v).toFixed(d).r
 /* ---------- Mapa ---------- */
 const mapa = L.map('mapa', { zoomControl: false, preferCanvas: true, minZoom: 11, maxZoom: 17,
   rotate: true, bearing: 0, touchRotate: false, shiftKeyRotate: false, rotateControl: false,
-  maxBounds: [[-34.72, -58.66], [-34.08, -57.88]], maxBoundsViscosity: 0.8, inertia: false, attributionControl: true }).setView([-34.47, -58.47], 13);
+  maxBounds: [[-34.72, -58.66], [-34.08, -57.66]], maxBoundsViscosity: 0.8, inertia: false, attributionControl: true }).setView([-34.47, -58.47], 13);
 if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__mapa = mapa; // solo para pruebas locales
 // Con mapa girable: capas de dibujo dentro del panel que gira; etiquetas en el que no gira (texto siempre derecho)
 const panelGira = mapa.getPane('rotatePane'), panelFijo = mapa.getPane('norotatePane');
@@ -48,11 +49,12 @@ const estiloZona = f => ({ stroke: f.properties.z === 'tierra' || f.properties.z
   fillColor: col(f.properties.z) || col('agua'), fillOpacity: 1 });
 nuevoPanel('tierra', 260); // la tierra siempre arriba del degradé y del rayado
 const lienzoTierra = L.canvas({ pane: 'tierra', padding: 0.8 });
-fetch('datos/carta.geojson').then(r => r.json()).then(gj => {
+function agregarCarta(gj) {
   const esTierra = f => f.properties.z === 'tierra' || f.properties.z === 'seca';
   capasCarta.push(L.geoJSON(gj, { pane: 'carta', renderer: lienzoCarta, interactive: false, style: estiloZona, filter: f => !esTierra(f) }).addTo(mapa));
   capasCarta.push(L.geoJSON(gj, { pane: 'tierra', renderer: lienzoTierra, interactive: false, style: estiloZona, filter: esTierra }).addTo(mapa));
-}).catch(() => {});
+}
+fetch('datos/carta.geojson').then(r => r.json()).then(agregarCarta).catch(() => {});
 oscuro.addEventListener('change', () => { capasCarta.forEach(c => c.setStyle(estiloZona)); if (typeof dibujarNoPasa === 'function') dibujarNoPasa(); document.getElementById('mapa').style.background = col('agua'); dibujarGrilla(); });
 document.getElementById('mapa').style.background = col('agua');
 
@@ -91,7 +93,7 @@ fetch('datos/rios.geojson').then(r => r.json()).then(gj => {
 });
 const LUGARES = [ // posiciones de referencia para nombres (no son puntos de navegación)
   ['San Isidro', -34.4715, -58.5135], ['Olivos', -34.5085, -58.4865], ['Núñez', -34.5440, -58.4610], ['Tigre', -34.4230, -58.5800],
-  ['San Fernando', -34.4420, -58.5560], ['Buenos Aires', -34.6040, -58.3900], ['Isla Martín García', -34.1760, -58.2560],
+  ['San Fernando', -34.4420, -58.5560], ['Buenos Aires', -34.6040, -58.3900], ['Isla Martín García', -34.1760, -58.2560], ['Colonia del Sacramento', -34.4640, -57.8300], ['Conchillas', -34.1643, -58.0333], ['Riachuelo', -34.4380, -57.7240],
 ];
 const etLugares = L.layerGroup(LUGARES.map(([n, la, lo]) => L.marker([la, lo], { pane: 'etiquetas', interactive: false,
   icon: L.divIcon({ className: '', html: `<div class="et-lugar" style="transform:translate(-50%,-50%)">${esc(n)}</div>`, iconSize: [0, 0] }) })));
@@ -167,16 +169,20 @@ mapa.on('zoomend', etiquetasSegunZoom);
 /* ---------- Capa dinámica "no pasás": profundidad de carta + altura actual del río < calado + margen ---------- */
 const MARGEN = 0.30; // m bajo la quilla
 const GRAD = { dia: [[86, 172, 226], [246, 251, 255]], noche: [[18, 58, 92], [52, 110, 140]] }; // somero → hondo
-let prof = null, capaNoPasa = null;
+const profs = []; // grillas de profundidad (una por zona/carta), cada una con su referencia de altura
 const LAT_SF = -34.44, LAT_BA = -34.58;
+// Colonia (SOHMA): profundidades al plano de reducción de Colonia. Sin altura en vivo todavía → 0 (conservador: como si el río estuviera en ese plano)
+function alturaColonia() { return 0; }
+const alturaDe = (p, lat) => p.ref === 'colonia' ? alturaColonia() : alturaRio(lat);
 function alturaRio(lat) { // interpola San Fernando ↔ Buenos Aires por latitud; sin dato: 0 (cero de la carta, conservador)
   const m = sit && sit.mareografos, sf = m && ultimo(m.SFER && m.SFER.observada), ba = m && ultimo(m.BSAS && m.BSAS.observada);
   const hs = sf ? sf[1] : (ba ? ba[1] : 0), hb = ba ? ba[1] : hs;
   const t = Math.min(Math.max((lat - LAT_SF) / (LAT_BA - LAT_SF), 0), 1);
   return hs + (hb - hs) * t;
 }
-function profCarta(lat, lon) { // bilineal, null si no hay dato
-  if (!prof) return null;
+function profCarta(lat, lon) { for (const p of profs) { const z = profEn(p, lat, lon); if (z !== null) return z; } return null; }
+function profEn(prof, lat, lon) { // bilineal, null si no hay dato
+  if (lon < prof.w || lon > prof.e || lat < prof.s || lat > prof.n) return null;
   const fx = (lon - prof.w) / (prof.e - prof.w) * prof.cols - 0.5, fy = (prof.n - lat) / (prof.n - prof.s) * prof.rows - 0.5;
   const x0 = Math.floor(fx), y0 = Math.floor(fy); if (x0 < 0 || y0 < 0 || x0 + 1 >= prof.cols || y0 + 1 >= prof.rows) return null;
   const g = (x, y) => prof.q[y * prof.cols + x];
@@ -215,9 +221,8 @@ const CapaTrama = L.ImageOverlay.extend({
   },
   setUrl(url) { this._url = url; if (this._image) this._image.style.maskImage = this._image.style.webkitMaskImage = `url(${url})`; return this; },
 });
-let capaGrad = null;
-function dibujarNoPasa() {
-  if (!prof) return;
+function dibujarNoPasa() { profs.forEach(dibujarNoPasaEn); }
+function dibujarNoPasaEn(prof) {
   const umbral = (parseFloat(calado.value) || 0) + MARGEN;
   const ESC = 8, Wc = prof.cols * ESC, Hc = prof.rows * ESC;
   const cvG = document.createElement('canvas'), cvM = document.createElement('canvas'); cvG.width = cvM.width = Wc; cvG.height = cvM.height = Hc;
@@ -225,10 +230,10 @@ function dibujarNoPasa() {
   const yN = merc(prof.n), yS = merc(prof.s), A = GRAD[modo()];
   for (let r = 0; r < Hc; r++) {
     // fila en Mercator → latitud real (misma proyección que el mapa: sin corrimientos)
-    const lat = deg(2 * Math.atan(Math.exp(yN - (yN - yS) * (r + 0.5) / Hc)) - Math.PI / 2), h = alturaRio(lat);
+    const lat = deg(2 * Math.atan(Math.exp(yN - (yN - yS) * (r + 0.5) / Hc)) - Math.PI / 2), h = alturaDe(prof, lat);
     for (let c = 0; c < Wc; c++) {
       const lon = prof.w + (prof.e - prof.w) * (c + 0.5) / Wc;
-      let z = profCarta(lat, lon);
+      let z = profEn(prof, lat, lon);
       if (z === null) continue;
       if (z < DETERMINANTE && lat > -34.475 && lat < -34.445 && lon > -58.505 && lon < -58.465 && enCorredor(lon, lat)) z = DETERMINANTE;
       const i = (r * Wc + c) * 4, dAhora = z + h;
@@ -244,19 +249,34 @@ function dibujarNoPasa() {
   const suave = (cv, r) => { const o = document.createElement('canvas'); o.width = cv.width; o.height = cv.height; const g = o.getContext('2d'); g.filter = `blur(${r}px)`; g.drawImage(cv, 0, 0); return o; };
   const cvG2 = suave(cvG, 2), cvM2 = suave(cvM, 1.2);
   const b = [[prof.s, prof.w], [prof.n, prof.e]];
-  if (!capaGrad) {
-    nuevoPanel('gradiente', 240); nuevoPanel('nopasa', 250);
-    capaGrad = L.imageOverlay(cvG2.toDataURL(), b, { pane: 'gradiente', interactive: false }).addTo(mapa);
-    capaNoPasa = new CapaTrama(cvM2.toDataURL(), b, { pane: 'nopasa', interactive: false }).addTo(mapa);
-  } else { capaGrad.setUrl(cvG2.toDataURL()); capaNoPasa.setUrl(cvM2.toDataURL()); }
-  const hSF = alturaRio(LAT_SF), hBA = alturaRio(LAT_BA);
-  const ley = document.getElementById('leyNoPasa');
+  if (!mapa.getPane('gradiente')) { nuevoPanel('gradiente', 240); nuevoPanel('nopasa', 250); }
+  if (!prof.capaGrad) {
+    prof.capaGrad = L.imageOverlay(cvG2.toDataURL(), b, { pane: 'gradiente', interactive: false }).addTo(mapa);
+    prof.capaNoPasa = new CapaTrama(cvM2.toDataURL(), b, { pane: 'nopasa', interactive: false }).addTo(mapa);
+  } else { prof.capaGrad.setUrl(cvG2.toDataURL()); prof.capaNoPasa.setUrl(cvM2.toDataURL()); }
 
 }
-fetch('datos/profundidad.json').then(r => r.json()).then(d => {
-  const bin = atob(d.b64), q = new Int8Array(bin.length); for (let i = 0; i < bin.length; i++) q[i] = (bin.charCodeAt(i) << 24) >> 24;
-  prof = { ...d, q }; dibujarNoPasa();
-}).catch(() => {});
+function cargarGrilla(url) {
+  return fetch(url).then(r => r.json()).then(d => {
+    const bin = atob(d.b64), q = new Int8Array(bin.length); for (let i = 0; i < bin.length; i++) q[i] = (bin.charCodeAt(i) << 24) >> 24;
+    const p = { ref: 'shn', ...d, q }; profs.push(p); dibujarNoPasaEn(p);
+  }).catch(() => {});
+}
+cargarGrilla('datos/profundidad.json');
+/* Zonas extra: se bajan recién cuando el mapa se acerca a ellas (la app no se pone pesada) */
+const ZONAS = [{ id: 'colonia', caja: [[-34.539, -57.962], [-34.411, -57.720]], carta: 'datos/carta_colonia.geojson', grilla: 'datos/profundidad_colonia.json' },
+  { id: 'costa_uy', caja: [[-34.60, -58.20], [-34.05, -57.66]], carta: 'datos/costa_uy.geojson' }];
+function cargarZonas() {
+  const v = mapa.getBounds().pad(0.5);
+  for (const z of ZONAS) {
+    if (z.cargada || !v.intersects(L.latLngBounds(z.caja))) continue;
+    z.cargada = true;
+    if (z.carta) fetch(z.carta).then(r => r.json()).then(agregarCarta).catch(() => { z.cargada = false; });
+    if (z.grilla) cargarGrilla(z.grilla);
+  }
+}
+mapa.on("moveend", cargarZonas); cargarZonas();
+
 
 /* ---------- Veriles oficiales de los canales troncales (Emilio Mitre, Paraná de las Palmas…) ---------- */
 fetch('datos/veriles.json', { cache: 'no-cache' }).then(r => r.json()).then(v => {

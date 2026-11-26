@@ -151,6 +151,18 @@
 "lat": -34.60194,
 "lon": -58.36529,
 "tipo": "amarra"
+},
+{
+"n": "Puerto de Yates de Colonia",
+"lat": -34.46849,
+"lon": -57.85228,
+"tipo": "club"
+},
+{
+"n": "Embarcadero Riachuelo",
+"lat": -34.44541,
+"lon": -57.72852,
+"tipo": "amarra"
 }
 ]
 }
