@@ -870,5 +870,10 @@ $('#btnInstalar').onclick = async () => {
 pintarInstalar();
 
 /* ---------- Offline ---------- */
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {});
+  // cuando se activa una versión nueva de la app, recargar una vez para mostrarla
+  let recargado = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!recargado) { recargado = true; location.reload(); } });
+}
 }
