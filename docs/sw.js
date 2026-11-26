@@ -1,10 +1,11 @@
 // Offline: la carta, las boyas y la app quedan guardadas; la situación del río se pide fresca y si no hay señal se usa la última.
-const V = 'costanero-v28';
+const V = 'costanero-v29';
 const BASE = ['./', 'index.html', 'estilo.css', 'app.js', 'manifest.webmanifest', 'icono-192.png', 'icono-512.png',
   'datos/carta.geojson', 'datos/rios.geojson', 'datos/boyas.json', 'datos/clubes.json', 'datos/veriles.json', 'datos/pasos_mitre.json', 'datos/referencias.json', 'datos/profundidad.json', 'datos/peligros.json', 'datos/mareas_uy.json',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'];
-self.addEventListener('install', e => e.waitUntil(caches.open(V).then(c => c.addAll(BASE)).then(() => self.skipWaiting())));
+// cache: 'reload' → al instalar una versión nueva se baja todo de la red (no una copia vieja del navegador)
+self.addEventListener('install', e => e.waitUntil(caches.open(V).then(c => c.addAll(BASE.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);

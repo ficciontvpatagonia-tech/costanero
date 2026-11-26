@@ -33,7 +33,8 @@ nuevoPanel('carta', 200);
 nuevoPanel('grilla', 300);
 nuevoPanel('ruta', 390);
 // Cada capa con su propio lienzo: si no, la carta (opaca) tapa la grilla y la ruta
-const lienzoCarta = L.canvas({ pane: 'carta', padding: 0.8 }), lienzoGrilla = L.canvas({ pane: 'grilla', padding: 0.8 });
+// margen 0,5 (antes 0,8): leaflet-rotate ya agranda el lienzo para cubrir el mapa girado; la grilla (pocas líneas) va en SVG
+const lienzoCarta = L.canvas({ pane: 'carta', padding: 0.5 }), lienzoGrilla = L.svg({ pane: 'grilla', padding: 0.5 });
 nuevoPanel('etiquetas', 420, true);
 
 // Colores de carta (estándar de plotter). Día y noche: se eligen según el modo del teléfono.
@@ -48,7 +49,7 @@ let capasCarta = [];
 const estiloZona = f => ({ stroke: f.properties.z === 'tierra' || f.properties.z === 'seca', color: col('borde'), weight: 0.6,
   fillColor: col(f.properties.z) || col('agua'), fillOpacity: 1 });
 nuevoPanel('tierra', 260); // la tierra siempre arriba del degradé y del rayado
-const lienzoTierra = L.canvas({ pane: 'tierra', padding: 0.8 });
+const lienzoTierra = L.canvas({ pane: 'tierra', padding: 0.5 });
 function agregarCarta(gj) {
   const esTierra = f => f.properties.z === 'tierra' || f.properties.z === 'seca';
   capasCarta.push(L.geoJSON(gj, { pane: 'carta', renderer: lienzoCarta, interactive: false, style: estiloZona, filter: f => !esTierra(f) }).addTo(mapa));
@@ -77,7 +78,22 @@ function dibujarGrilla() {
 mapa.on('moveend zoomend', dibujarGrilla); dibujarGrilla();
 
 /* ---------- Ríos y lugares ---------- */
-const etRios = L.layerGroup();
+// Grupo que pone en el mapa solo lo que cae en pantalla (+ margen): con ~460 boyas, señales y nombres, el teléfono
+// mueve, gira y hace zoom con muchos menos elementos vivos. Lo que tiene la ficha abierta no se saca.
+const GrupoVisible = L.LayerGroup.extend({
+  onAdd(map) { map.on('moveend', this._ver, this); this._ver(); },
+  onRemove(map) { map.off('moveend', this._ver, this); this.eachLayer(l => map.removeLayer(l)); },
+  addLayer(l) { this._layers[this.getLayerId(l)] = l; if (this._map) this._uno(l, this._caja()); return this; },
+  removeLayer(l) { const id = l in this._layers ? l : this.getLayerId(l), x = this._layers[id]; if (x && this._map) this._map.removeLayer(x); delete this._layers[id]; return this; },
+  _caja() { return this._map.getBounds().pad(0.5); },
+  _ver() { if (!this._map) return; const b = this._caja(); this.eachLayer(l => this._uno(l, b)); },
+  _uno(l, b) {
+    const ver = !l.getLatLng || b.contains(l.getLatLng()) || (l.isPopupOpen && l.isPopupOpen()), esta = this._map.hasLayer(l);
+    if (ver && !esta) this._map.addLayer(l); else if (!ver && esta) this._map.removeLayer(l);
+  },
+});
+const grupoVisible = () => new GrupoVisible();
+const etRios = grupoVisible();
 const merc = lat => Math.log(Math.tan(Math.PI / 4 + rad(lat) / 2));
 fetch('datos/rios.geojson').then(r => r.json()).then(gj => {
   const porNombre = {};
@@ -108,7 +124,7 @@ function etiquetasSegunZoom() {
 }
 
 /* ---------- Boyas (posición UNEN manda) ---------- */
-const capaBoyas = L.layerGroup().addTo(mapa), etBoyas = L.layerGroup(), etDestacadas = L.layerGroup().addTo(mapa);
+const capaBoyas = grupoVisible().addTo(mapa), etBoyas = grupoVisible(), etDestacadas = grupoVisible().addTo(mapa);
 // Referencias importantes: nombre siempre visible, a cualquier zoom
 const DESTACADAS = ['DON ALEJANDRO', 'NORMA MABEL', 'UNEN A', 'UNEN B'];
 const nombreLindo = n => n.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
@@ -232,55 +248,86 @@ function enCorredor(lon, lat) {
   }
   return dentro;
 }
-// Capa con trama: un <div> con rayado CSS (tamaño fijo en pantalla) recortado por una máscara georreferenciada
-const CapaTrama = L.ImageOverlay.extend({
-  _initImage() {
-    const el = this._image = L.DomUtil.create('div', 'capa-trama leaflet-image-layer' + (this._zoomAnimated ? ' leaflet-zoom-animated' : ''));
-    el.style.maskImage = el.style.webkitMaskImage = `url(${this._url})`;
-    el.style.maskSize = el.style.webkitMaskSize = '100% 100%';
-    el.style.maskRepeat = el.style.webkitMaskRepeat = 'no-repeat';
-  },
-  setUrl(url) { this._url = url; if (this._image) this._image.style.maskImage = this._image.style.webkitMaskImage = `url(${url})`; return this; },
-});
-function dibujarNoPasa() { profs.forEach(dibujarNoPasaEn); }
-function dibujarNoPasaEn(prof) {
-  const umbral = (parseFloat(calado.value) || 0) + MARGEN;
-  const ESC = 8, Wc = prof.cols * ESC, Hc = prof.rows * ESC;
-  const cvG = document.createElement('canvas'), cvM = document.createElement('canvas'); cvG.width = cvM.width = Wc; cvG.height = cvM.height = Hc;
-  const gG = cvG.getContext('2d'), gM = cvM.getContext('2d'), imG = gG.createImageData(Wc, Hc), imM = gM.createImageData(Wc, Hc), pg = imG.data, pm = imM.data;
-  const yN = merc(prof.n), yS = merc(prof.s), A = GRAD[modo()];
-  for (let r = 0; r < Hc; r++) {
-    // fila en Mercator → latitud real (misma proyección que el mapa: sin corrimientos)
-    const lat = deg(2 * Math.atan(Math.exp(yN - (yN - yS) * (r + 0.5) / Hc)) - Math.PI / 2), h = alturaDe(prof, lat);
-    for (let c = 0; c < Wc; c++) {
-      const lon = prof.w + (prof.e - prof.w) * (c + 0.5) / Wc;
-      let z = profEn(prof, lat, lon);
-      if (z === null) continue;
-      if (z < DETERMINANTE && lat > -34.475 && lat < -34.445 && lon > -58.505 && lon < -58.465 && enCorredor(lon, lat)) z = DETERMINANTE;
-      const i = (r * Wc + c) * 4, dAhora = z + h;
-      if (dAhora < umbral) { pm[i + 3] = 255; } // máscara "no pasás"
-      if (z > -0.05) { // degradé tipo plotter: azul donde hay poca agua → blanco donde sobra
-        const t = Math.min(Math.max((dAhora - umbral) / 3, 0), 1);
-        pg[i] = A[0][0] + (A[1][0] - A[0][0]) * t; pg[i + 1] = A[0][1] + (A[1][1] - A[0][1]) * t; pg[i + 2] = A[0][2] + (A[1][2] - A[0][2]) * t; pg[i + 3] = 255;
+/* Profundidad + rayado "no pasás" en mosaicos de 256 px, como un plotter: solo se calcula lo que está en pantalla,
+   a la resolución de la pantalla, de a poco (sin trabar el teléfono). Si cambia la altura o el calado se repintan
+   los mosaicos que ya están, sin parpadeo. (Antes: una imagen de 8,5 millones de píxeles por grilla, ~1,3 s por dibujo.) */
+const TILE = 256, PER = 13, LIN = 3.5; // rayado a 45°: período ~9 px y línea ~2,5 px medidos en perpendicular
+let bufTile = null;
+function pintarTile(cv, c) {
+  const g = cv.getContext('2d'), N = TILE * 2 ** c.z, x0 = c.x * TILE, y0 = c.y * TILE;
+  const lonDe = px => px / N * 360 - 180, latDe = py => deg(Math.atan(Math.sinh(Math.PI * (1 - 2 * py / N))));
+  const w = lonDe(x0), e = lonDe(x0 + TILE), n = latDe(y0), s = latDe(y0 + TILE);
+  const gr = profs.filter(p => p.e > w && p.w < e && p.n > s && p.s < n);
+  g.clearRect(0, 0, TILE, TILE);
+  if (!gr.length) return;
+  if (!bufTile) bufTile = g.createImageData(TILE, TILE);
+  const d = bufTile.data; d.fill(0);
+  const umbral = (parseFloat(calado.value) || 0) + MARGEN, A = GRAD[modo()];
+  const pre = gr.map(p => { // por grilla: columna → x en la grilla, fila → y en la grilla y altura del río
+    const fx = new Float32Array(TILE), fy = new Float32Array(TILE), h = new Float32Array(TILE);
+    for (let i = 0; i < TILE; i++) fx[i] = (lonDe(x0 + i + 0.5) - p.w) / (p.e - p.w) * p.cols - 0.5;
+    for (let j = 0; j < TILE; j++) { const lat = latDe(y0 + j + 0.5); fy[j] = (p.n - lat) / (p.n - p.s) * p.rows - 0.5; h[j] = alturaDe(p, lat); }
+    return { p, fx, fy, h };
+  });
+  const tocaCorredor = corredor && n > -34.475 && s < -34.445 && e > -58.505 && w < -58.465;
+  for (let j = 0; j < TILE; j++) {
+    for (let i = 0; i < TILE; i++) {
+      let z = null, hh = 0;
+      for (const { p, fx, fy, h } of pre) { // bilineal con pesos renormalizados (igual que profEn)
+        const X = fx[i], Y = fy[j], xi = Math.floor(X), yi = Math.floor(Y);
+        if (xi < 0 || yi < 0 || xi + 1 >= p.cols || yi + 1 >= p.rows) continue;
+        const q = p.q, k = yi * p.cols + xi, tx = X - xi, ty = Y - yi, a = q[k], b = q[k + 1], c2 = q[k + p.cols], d2 = q[k + p.cols + 1];
+        let suma = 0, peso = 0, wt;
+        if (a !== -128) { wt = (1 - tx) * (1 - ty); suma += a * wt; peso += wt; }
+        if (b !== -128) { wt = tx * (1 - ty); suma += b * wt; peso += wt; }
+        if (c2 !== -128) { wt = (1 - tx) * ty; suma += c2 * wt; peso += wt; }
+        if (d2 !== -128) { wt = tx * ty; suma += d2 * wt; peso += wt; }
+        if (peso < 0.5) continue;
+        z = suma / peso / 10; hh = h[j]; break;
       }
+      if (z === null) continue;
+      if (tocaCorredor && z < DETERMINANTE) {
+        const lat = latDe(y0 + j + 0.5), lon = lonDe(x0 + i + 0.5);
+        if (lat > -34.475 && lat < -34.445 && lon > -58.505 && lon < -58.465 && enCorredor(lon, lat)) z = DETERMINANTE;
+      }
+      const o = (j * TILE + i) * 4, dA = z + hh;
+      let r = 0, gg = 0, bb = 0, al = 0;
+      if (z > -0.05) { // degradé tipo plotter: azul donde hay poca agua → blanco donde sobra
+        const t = Math.min(Math.max((dA - umbral) / 3, 0), 1);
+        r = A[0][0] + (A[1][0] - A[0][0]) * t; gg = A[0][1] + (A[1][1] - A[0][1]) * t; bb = A[0][2] + (A[1][2] - A[0][2]) * t; al = 255;
+      }
+      if (dA < umbral) { // rayado negro, continuo entre mosaicos (se mide en píxeles globales)
+        const m = (((x0 + i) - (y0 + j)) % PER + PER) % PER, k = m < LIN - 0.5 ? 0.85 : m < LIN + 0.5 ? 0.55 : 0.28;
+        if (al) { r *= 1 - k; gg *= 1 - k; bb *= 1 - k; } else al = 255 * k;
+      }
+      d[o] = r; d[o + 1] = gg; d[o + 2] = bb; d[o + 3] = al;
     }
   }
-  gG.putImageData(imG, 0, 0); gM.putImageData(imM, 0, 0);
-  // bordes suaves (sin escalones de la grilla): difuminado leve del degradé y de la máscara
-  const suave = (cv, r) => { const o = document.createElement('canvas'); o.width = cv.width; o.height = cv.height; const g = o.getContext('2d'); g.filter = `blur(${r}px)`; g.drawImage(cv, 0, 0); return o; };
-  const cvG2 = suave(cvG, 2), cvM2 = suave(cvM, 1.2);
-  const b = [[prof.s, prof.w], [prof.n, prof.e]];
-  if (!mapa.getPane('gradiente')) { nuevoPanel('gradiente', 240); nuevoPanel('nopasa', 250); }
-  if (!prof.capaGrad) {
-    prof.capaGrad = L.imageOverlay(cvG2.toDataURL(), b, { pane: 'gradiente', interactive: false }).addTo(mapa);
-    prof.capaNoPasa = new CapaTrama(cvM2.toDataURL(), b, { pane: 'nopasa', interactive: false }).addTo(mapa);
-  } else { prof.capaGrad.setUrl(cvG2.toDataURL()); prof.capaNoPasa.setUrl(cvM2.toDataURL()); }
-
+  g.putImageData(bufTile, 0, 0);
+}
+// Cola: se pintan mosaicos hasta ~10 ms por cuadro y se sigue en el próximo (la pantalla nunca se congela)
+const colaTiles = new Map(); let colaActiva = false;
+function encolarTile(cv, c, done) { const x = colaTiles.get(cv); colaTiles.set(cv, [c, done || (x && x[1])]); if (!colaActiva) { colaActiva = true; requestAnimationFrame(procesarTiles); } }
+function procesarTiles() {
+  const t0 = performance.now();
+  for (const [cv, [c, done]] of colaTiles) { colaTiles.delete(cv); pintarTile(cv, c); if (done) done(null, cv); if (performance.now() - t0 > 10) break; }
+  if (colaTiles.size) requestAnimationFrame(procesarTiles); else colaActiva = false;
+}
+const CapaProf = L.GridLayer.extend({
+  createTile(c, done) { const cv = document.createElement('canvas'); cv.width = cv.height = TILE; encolarTile(cv, c, done); return cv; },
+  repintar() { for (const k in this._tiles) encolarTile(this._tiles[k].el, this._tiles[k].coords); },
+});
+nuevoPanel('gradiente', 240);
+const capaProf = new CapaProf({ pane: 'gradiente', tileSize: TILE, updateWhenZooming: false, keepBuffer: 1 }).addTo(mapa);
+let claveProf = '';
+function dibujarNoPasa() { // repinta solo si cambió algo que se ve (altura, calado, día/noche, grillas, corredor)
+  const k = [calado.value, modo(), profs.length, corredor ? 1 : 0, alturaRio(LAT_SF).toFixed(2), alturaRio(LAT_BA).toFixed(2), profs.some(p => p.ref === 'colonia') ? alturaColonia().toFixed(2) : ''].join('|');
+  if (k !== claveProf) { claveProf = k; capaProf.repintar(); }
 }
 function cargarGrilla(url) {
   return fetch(url).then(r => r.json()).then(d => {
     const bin = atob(d.b64), q = new Int8Array(bin.length); for (let i = 0; i < bin.length; i++) q[i] = (bin.charCodeAt(i) << 24) >> 24;
-    const p = { ref: 'shn', ...d, q }; profs.push(p); dibujarNoPasaEn(p);
+    const p = { ref: 'shn', ...d, q }; profs.push(p); dibujarNoPasa();
   }).catch(() => {});
 }
 cargarGrilla('datos/profundidad.json');
@@ -308,7 +355,7 @@ fetch('datos/veriles.json', { cache: 'no-cache' }).then(r => r.json()).then(v =>
 }).catch(() => {});
 
 /* ---------- Clubes y amarras (OpenStreetMap) ---------- */
-const capaClubes = L.layerGroup(), etClubes = L.layerGroup();
+const capaClubes = grupoVisible(), etClubes = grupoVisible();
 const iconoClub = L.divIcon({ className: 'toque', iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -10],
   html: '<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#0b2a3c" stroke="#fff" stroke-width="1.5"/><path d="M11 5v11M7.5 8h7M6 12.5c1 2.6 3 3.6 5 3.6s4-1 5-3.6" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="5" r="1.4" fill="#fff"/></svg>' });
 fetch('datos/clubes.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
@@ -1197,5 +1244,6 @@ function arrastrable(hoja, cerrar, habilitado) {
 }
 arrastrable($('#hojaMarea')); arrastrable($('#hojaViento'));
 arrastrable($('#panel'), () => abrirPanel(false), () => innerWidth <= 700);
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__dbg = { dibujarNoPasa, profs, get sit() { return sit; } }; // solo pruebas locales
 
 }

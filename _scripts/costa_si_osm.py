@@ -18,12 +18,14 @@ for l in costas:
         dx, dy = x2 - x1, y2 - y1; n = math.hypot(dx, dy) or 1
         izq.append(Point((x1 + x2) / 2 - dy / n * 1e-5, (y1 + y2) / 2 + dx / n * 1e-5))
 tierra = unary_union([c for c in caras if any(c.contains(p) for p in izq)])
-# marinas y dársenas con agua (no estanques, piletas ni lagos interiores)
+# marinas, dársenas y el propio Río de la Plata (no estanques, piletas ni lagos interiores).
+# OJO: en OSM la "coastline" no sigue la orilla de San Isidro: cierra con una recta hacia Uruguay y el río de este lado
+# es el multipolígono "Río de la Plata" (natural=water). Sin restarlo, ese pedazo de río queda como tierra (26/11/2026).
 NO = {"pond", "reservoir", "basin", "fountain", "reflecting_pool", "lake", "wastewater"}
 agua = []
 for e in el:
     t = e.get("tags", {})
-    if t.get("natural") != "water" or t.get("water") in NO or t.get("name") == "Río de la Plata": continue
+    if t.get("natural") != "water" or t.get("water") in NO: continue
     if e["type"] == "way" and len(e["geometry"]) > 3: agua.append(Polygon([(p["lon"], p["lat"]) for p in e["geometry"]]).buffer(0))
     elif e["type"] == "relation":
         ls = [lin(m["geometry"]) for m in e.get("members", []) if m.get("role") == "outer" and m.get("geometry")]
