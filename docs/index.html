@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=73">
+<link rel="stylesheet" href="estilo.css?v=74">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -48,32 +48,32 @@
 <div class="alertas" id="alertas" role="alert" hidden></div>
 
 <aside class="hoja-viento" id="hojaViento" aria-label="Viento 3 días" hidden>
+  <div class="agarre" aria-hidden="true"></div>
   <button class="cerrar" id="cerrarViento" aria-label="Cerrar">×</button>
   <select id="puntoViento" aria-label="Punto"></select>
   <div class="scroll" id="tablaViento"></div>
 </aside>
 
 <aside class="hoja-marea" id="hojaMarea" aria-label="Mareas" hidden>
+  <div class="agarre" aria-hidden="true"></div>
   <button class="cerrar" id="cerrarMarea" aria-label="Cerrar">×</button>
-    <div class="semaforo" id="semaforo">
-      <div class="sem-cab">
-        <h2>Canal Costanero</h2>
-        <label class="calado">Calado
-          <input id="calado" type="number" inputmode="decimal" min="0.3" max="4" step="0.05" value="1.50"> m
-        </label>
-      </div>
-      <div class="sem-luz" id="semLuz">—</div>
-      <div class="sem-det" id="semDet"></div>
-      <div class="curva" id="curvaSF" aria-label="Altura en San Fernando"></div>
-    </div>
-    <div id="estaciones" class="estaciones"></div>
-    <div id="pronostico" class="bloque"></div>
+  <div class="m-sel">
+    <label>Calado <input id="calado" type="number" inputmode="decimal" min="0.3" max="4" step="0.05" value="1.50"> m</label>
+    <select id="zonaMarea" aria-label="Zona del río"><option value="SFER">San Isidro</option><option value="BSAS">Puerto de Buenos Aires</option><option value="PNOR">Pilote Norden</option><option value="MAGA">Martín García</option><option value="LPLA">La Plata</option></select>
+  </div>
+  <div class="semaforo" id="semaforo">
+    <div class="sem-luz" id="semLuz">—</div>
+    <div class="sem-det" id="semDet"></div>
+  </div>
+  <div id="estaciones" class="estaciones"></div>
+  <div class="bloque"><h2 id="tituloCurva">Altura</h2><div class="curva" id="curvaSF" aria-label="Altura del río"></div></div>
+  <div class="bloque" id="corriente" hidden></div>
 </aside>
 
 <div class="marea" id="barraMarea" role="button" tabindex="0" title="Marea · tocá para ver las mareas">
   <div class="m-num" id="mNum">—</div>
   <div class="m-tubo"><div class="m-nivel" id="mNivel"></div><div class="m-lim" id="mLim"></div></div>
-  <div class="m-sub" id="mSub"></div>
+  <div class="m-sub"><span class="m-fl" id="mFl"></span><span id="mHora"></span></div>
 </div>
 
 <div class="rosa" id="rosaViento" aria-live="polite" role="button" tabindex="0" title="Viento ahora · tocá para ver el pronóstico de 3 días">
@@ -145,6 +145,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=73"></script>
+<script src="app.js?v=74"></script>
 </body>
 </html>

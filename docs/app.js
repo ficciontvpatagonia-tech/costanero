@@ -546,7 +546,7 @@ function pintarSemaforo() {
   if (!u) { luz.className = 'sem-luz'; luz.textContent = 'Sin dato de altura'; det.textContent = ''; return; }
   const c = parseFloat(calado.value) || 0, agua = DETERMINANTE + u[1], margen = agua - c;
   luz.className = 'sem-luz ' + (margen >= 0.5 ? 'verde' : margen >= 0.2 ? 'ambar' : 'rojo');
-  luz.textContent = margen >= 0.5 ? 'Pasa' : margen >= 0.2 ? 'Justo' : 'No pasa';
+  luz.textContent = 'Costanero · ' + (margen >= 0.5 ? 'Pasa' : margen >= 0.2 ? 'Justo' : 'No pasa');
   const est = estimacion(sf);
   let prox = '';
   if (est && est.futuro.length) {
@@ -555,10 +555,12 @@ function pintarSemaforo() {
     else if (margen >= 0.2 && malo) prox = ` · deja de dar ${hora(malo[0])}`;
   }
   det.textContent = `Bajo la quilla ${num(margen)} m · San Fernando ${num(u[1])} m (${hora(u[0])})${prox}`;
-  curva(sf, est);
+  const ol = (sit.radioavisos?.olas_costanero_km17 || [])[0];
+  if (ol) det.textContent += ` · olas ${num(Math.max(ol.manana.alt, ol.tarde.alt), 1)} m`;
+  pintarCurva();
 }
 
-function curva(est, e) {
+function curva(est, e, conLim) {
   const caja = $('#curvaSF');
   const dibujar = () => {
     const W = caja.clientWidth, H = caja.clientHeight; if (!W) return;
@@ -566,11 +568,10 @@ function curva(est, e) {
     const todos = [...obs, ...ast, ...fut]; if (!todos.length) return;
     const t0 = Math.min(...todos.map(x => +new Date(x[0]))), t1 = Math.max(...todos.map(x => +new Date(x[0])));
     const c = parseFloat(calado.value) || 0, lim = c - DETERMINANTE + 0.2; // altura mínima para 0,2 m bajo la quilla
-    const vals = [...todos.map(x => x[1]), lim]; const lo = Math.min(...vals) - 0.15, hi = Math.max(...vals) + 0.15;
+    const vals = [...todos.map(x => x[1]), ...(conLim ? [lim] : [])]; const lo = Math.min(...vals) - 0.15, hi = Math.max(...vals) + 0.15;
     const X = t => 34 + (W - 44) * (+new Date(t) - t0) / Math.max(t1 - t0, 1), Y = v => 8 + (H - 30) * (hi - v) / (hi - lo);
     const linea = (a, col, extra = '') => a.length ? `<polyline fill="none" stroke="${col}" stroke-width="2.4" ${extra} points="${a.map(x => `${X(x[0]).toFixed(1)},${Y(x[1]).toFixed(1)}`).join(' ')}"/>` : '';
-    let s = `<rect x="34" y="${Y(lim)}" width="${W - 44}" height="${Math.max(H - 22 - Y(lim), 0)}" fill="#d7262e" opacity=".12"/>`;
-    s += `<line x1="34" x2="${W - 10}" y1="${Y(lim)}" y2="${Y(lim)}" stroke="#d7262e" stroke-dasharray="4 3"/>`;
+    let s = conLim ? `<rect x="34" y="${Y(lim)}" width="${W - 44}" height="${Math.max(H - 22 - Y(lim), 0)}" fill="#d7262e" opacity=".12"/><line x1="34" x2="${W - 10}" y1="${Y(lim)}" y2="${Y(lim)}" stroke="#d7262e" stroke-dasharray="4 3"/>` : '';
     for (let v = Math.ceil(lo * 2) / 2; v <= hi; v += 0.5) s += `<text x="2" y="${Y(v) + 4}" font-size="11" fill="currentColor">${num(v, 1)}</text><line x1="34" x2="${W - 10}" y1="${Y(v)}" y2="${Y(v)}" stroke="currentColor" opacity=".12"/>`;
     s += linea(ast, '#8aa0ad', 'stroke-dasharray="2 3"') + linea(obs, '#0a6fb0') + linea(fut, '#c2188f', 'stroke-dasharray="6 4"');
     const ahora = ultimo(obs); if (ahora) s += `<circle cx="${X(ahora[0])}" cy="${Y(ahora[1])}" r="4" fill="#0a6fb0"/>`;
@@ -584,6 +585,8 @@ const SITUACIONES = [ // lo que importa: Pilote Norden, San Isidro, Puerto de Bu
   { id: 'SI', titulo: 'San Isidro', viento: 'si' },
   { id: 'BSAS', titulo: 'Puerto de Buenos Aires', viento: 'bsas' },
   { id: 'PNOR', titulo: 'Pilote Norden', viento: 'pnor' },
+  { id: 'MAGA', titulo: 'Martín García' },
+  { id: 'LPLA', titulo: 'La Plata' },
 ];
 // Tendencia con hora: "▲ crece hasta las 21:45" (estimación SHN: astronómica + efecto del viento; si no alcanza, pleamar/bajamar SHN)
 function tendencia(est, puertoPB) {
@@ -613,12 +616,6 @@ function tarjeta(s) {
 function pintarSituacion() {
   if (!sit) return;
   $('#estaciones').innerHTML = SITUACIONES.map(tarjeta).join('');
-  const r = sit.radioavisos || {};
-  const pb = r.pleamar_bajamar || {};
-  const filas = ['San Fernando', 'Buenos Aires'].filter(p => pb[p]).map(p => `<tr><th class="r">${esc(p)}</th>${pb[p].map(x => `<td>${esc(x.estado)}<br><strong>${esc(x.hora)}</strong> · ${num(x.altura)} m</td>`).join('')}</tr>`).join('');
-  const ol = (r.olas_costanero_km17 || [])[0];
-  $('#pronostico').innerHTML = (filas ? `<h2>Pleamar / bajamar</h2><div class="scroll"><table class="vt">${filas}</table></div>` : '')
-    + (ol ? `<p><strong>Olas Costanero:</strong> ${num(Math.max(ol.manana.alt, ol.tarde.alt), 1)} m ${esc(ol.manana.dir)}</p>` : '');
   const edadMin = (Date.now() - new Date(sit.generado)) / 60000, act = $('#actualizado');
   act.textContent = 'datos ' + new Date(sit.generado).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
     + (edadMin > 90 ? ` · ATENCIÓN: datos de hace ${edadMin > 120 ? Math.round(edadMin / 60) + ' h' : Math.round(edadMin) + ' min'}` : '');
@@ -945,24 +942,69 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 }
 /* ---------- Barra de marea (abajo a la derecha): altura en San Fernando ahora; tocar abre la hoja de mareas ---------- */
 const MAREA_MIN = -0.5, MAREA_MAX = 3.0, MAREA_ALTA = 1.5;
+const zonaSel = $('#zonaMarea'); zonaSel.value = leer('zonaMarea', 'SFER'); if (!zonaSel.value) zonaSel.value = 'SFER';
+const PB_ZONA = { SFER: 'San Fernando', BSAS: 'Buenos Aires' };
+zonaSel.onchange = () => { guardar('zonaMarea', zonaSel.value); pintarBarraMarea(); pintarCurva(); };
+function pintarCurva() {
+  const z = zonaSel.value, est = sit && sit.mareografos && sit.mareografos[z]; if (!est) return;
+  $('#tituloCurva').textContent = 'Altura · ' + zonaSel.selectedOptions[0].textContent;
+  curva(est, estimacion(est), z === 'SFER');
+}
 function pintarBarraMarea() {
-  const b = $('#barraMarea'), sf = sit && sit.mareografos && sit.mareografos.SFER, u = sf && ultimo(sf.observada);
-  if (!u) { $('#mNum').textContent = '—'; $('#mSub').textContent = ''; return; }
+  const z = zonaSel.value, b = $('#barraMarea'), sf = sit && sit.mareografos && sit.mareografos[z], u = sf && ultimo(sf.observada);
+  if (!u) { $('#mNum').textContent = '—'; $('#mFl').textContent = $('#mHora').textContent = ''; return; }
   const c = parseFloat(calado.value) || 0, margen = DETERMINANTE + u[1] - c;
-  const nivel = u[1] <= UMBRAL_BAJANTE || margen < 0.2 ? 'bajo' : u[1] >= MAREA_ALTA ? 'alto' : 'medio';
+  const nivel = u[1] <= UMBRAL_BAJANTE || (z === 'SFER' && margen < 0.2) ? 'bajo' : u[1] >= MAREA_ALTA ? 'alto' : 'medio';
   b.dataset.nivel = nivel;
   const pct = v => Math.max(0, Math.min(100, (v - MAREA_MIN) / (MAREA_MAX - MAREA_MIN) * 100));
   $('#mNivel').style.height = pct(u[1]) + '%';
-  $('#mLim').style.bottom = pct(c - DETERMINANTE + 0.2) + '%';
+  $('#mLim').style.bottom = pct(c - DETERMINANTE + 0.2) + '%'; $('#mLim').hidden = z !== 'SFER';
   $('#mNum').textContent = num(u[1], 1);
-  const t = tendencia(sf, 'San Fernando'), m = t.match(/(▲|▼)[^<]*?(\d\d:\d\d)?</);
-  $('#mSub').textContent = m ? m[1] + (m[2] || '') : '';
-  b.title = `San Fernando ${num(u[1])} m (${hora(u[0])}) · tocá para ver las mareas`;
+  const t = tendencia(sf, PB_ZONA[z]), m = t.match(/(▲|▼)[^<]*?(\d\d:\d\d)?</);
+  $('#mFl').textContent = m ? m[1] : ''; $('#mFl').className = 'm-fl ' + (m && m[1] === '▲' ? 'sube' : 'baja');
+  $('#mHora').textContent = m && m[2] ? m[2] : '';
+  b.title = `${zonaSel.selectedOptions[0].textContent} ${num(u[1])} m (${hora(u[0])}) · tocá para ver las mareas`;
 }
-function abrirMarea() { abrirPanel(false); $('#hojaViento').hidden = true; $('#hojaMarea').hidden = false; const c = $('#curvaSF'); c._dibujar && c._dibujar(); }
+function abrirMarea() { abrirPanel(false); $('#hojaViento').hidden = true; $('#hojaMarea').hidden = false; const c = $('#curvaSF'); c._dibujar && c._dibujar(); cargarCorriente(); }
+/* Corriente: modelo oceánico global (Open-Meteo Marine, celda ~8 km): orientativa */
+let corrT = 0;
+async function cargarCorriente() {
+  if (Date.now() - corrT < 30 * 60e3) return;
+  const p = posGps || mapa.getCenter();
+  try {
+    const d = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${p.lat.toFixed(3)}&longitude=${p.lng.toFixed(3)}&hourly=ocean_current_velocity,ocean_current_direction&forecast_days=2&cell_selection=sea&timezone=America%2FArgentina%2FBuenos_Aires`).then(r => r.json());
+    const h = d.hourly; if (!h) return;
+    const ahora = Date.now(), i0 = Math.max(0, h.time.findIndex(t => new Date(t) > ahora - 3600e3));
+    const fila = i => h.ocean_current_velocity[i] == null ? '' : `<td><b>${num(h.ocean_current_velocity[i] / 1.852, 1)}</b> kn<br><span class="flecha" style="transform:rotate(${h.ocean_current_direction[i]}deg)">↑</span> ${cardinal(h.ocean_current_direction[i])}<br><small>${hora(h.time[i])}</small></td>`;
+    const celdas = [0, 2, 4, 6].map(k => fila(i0 + k)).join('');
+    if (!celdas) return;
+    corrT = Date.now();
+    const c = $('#corriente'); c.hidden = false;
+    c.innerHTML = `<h2>Corriente <small class="nota">hacia · aprox.</small></h2><table class="vt corr"><tr>${celdas}</tr></table>`;
+  } catch (e) {}
+}
 $('#barraMarea').onclick = abrirMarea;
 $('#barraMarea').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirMarea(); } };
 $('#cerrarMarea').onclick = () => { $('#hojaMarea').hidden = true; };
 pintarBarraMarea();
+/* Hojas de viento y marea: se cierran arrastrando hacia abajo con un dedo */
+function arrastrable(hoja) {
+  let y0 = null, x0 = 0, dy = 0, activo = false;
+  hoja.addEventListener('touchstart', e => { if (hoja.scrollTop > 0 || e.touches.length > 1) { y0 = null; return; } y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; activo = false; }, { passive: true });
+  hoja.addEventListener('touchmove', e => {
+    if (y0 == null) return;
+    const d = e.touches[0].clientY - y0, dx = Math.abs(e.touches[0].clientX - x0);
+    if (!activo) { if (d > 10 && d > dx) activo = true; else if (dx > 10 || d < -5) { y0 = null; return; } else return; }
+    dy = Math.max(0, d); hoja.style.transition = 'none'; hoja.style.transform = `translateY(${dy}px)`; e.preventDefault();
+  }, { passive: false });
+  hoja.addEventListener('touchend', () => {
+    if (!activo) { y0 = null; return; }
+    hoja.style.transition = 'transform .18s'; 
+    if (dy > 70) { hoja.style.transform = 'translateY(100%)'; setTimeout(() => { hoja.hidden = true; hoja.style.transform = ''; }, 180); }
+    else hoja.style.transform = '';
+    y0 = null; activo = false;
+  });
+}
+arrastrable($('#hojaMarea')); arrastrable($('#hojaViento'));
 
 }
