@@ -377,9 +377,14 @@ function dibujarPasillo() {
 /* ---------- Puerto de Buenos Aires: Canal Norte, Canal Sur, Canal de Acceso, zonas restringidas y de vertido (OpenStreetMap) ---------- */
 fetch('datos/puerto.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
   for (const c of d.canales) {
-    L.polyline(c.c, { pane: 'ruta', color: '#7fa7c0', weight: 3, dashArray: '10 6', opacity: 0.9, interactive: false }).addTo(mapa);
-    const m = c.c[Math.floor(c.c.length / 2)];
-    L.marker(m, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-rio" style="transform:translate(-50%,-140%)">${esc(c.n)}</div>`, iconSize: [0, 0] }) }).addTo(etRios);
+    if (!c.soloRotulo) L.polyline(c.c, { pane: 'ruta', color: '#7fa7c0', weight: 3, dashArray: '10 6', opacity: 0.9, interactive: false }).addTo(mapa);
+    // rótulo a lo largo del canal (en uno o dos lugares si es largo)
+    const pos = c.c.length > 20 ? [0.3, 0.7] : [0.5];
+    for (const f of pos) {
+      const i = Math.min(Math.max(Math.floor(c.c.length * f), 1), c.c.length - 2), a = c.c[i - 1], b = c.c[i + 1];
+      let ang = deg(Math.atan2(-(merc(b[0]) - merc(a[0])), rad(b[1] - a[1]))); if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
+      L.marker(c.c[i], { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-canal" style="transform:translate(-50%,-50%) rotate(${ang.toFixed(1)}deg) translateY(-14px)">${esc(c.n)}</div>`, iconSize: [0, 0] }) }).addTo(etRios);
+    }
   }
   for (const a of d.areas) {
     L.polygon(a.c, { pane: 'ruta', color: '#d7262e', weight: 2, dashArray: '6 5', fillColor: '#d7262e', fillOpacity: 0.12, interactive: false }).addTo(mapa);
