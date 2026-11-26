@@ -172,7 +172,28 @@ const GRAD = { dia: [[86, 172, 226], [246, 251, 255]], noche: [[18, 58, 92], [52
 const profs = []; // grillas de profundidad (una por zona/carta), cada una con su referencia de altura
 const LAT_SF = -34.44, LAT_BA = -34.58;
 // Colonia (SOHMA): profundidades al plano de reducción de Colonia. Sin altura en vivo todavía → 0 (conservador: como si el río estuviera en ese plano)
-function alturaColonia() { return 0; }
+function alturaColonia() { const u = sit && sit.mareografos && sit.mareografos.COLO && ultimo(sit.mareografos.COLO.observada); return u ? u[1] : 0; }
+/* Colonia y Montevideo: predicción SOHMA (tabla horaria) + efecto del viento medido en Martín García (Colonia) */
+let mareasUY = null;
+fetch('datos/mareas_uy.json').then(r => r.json()).then(d => { mareasUY = d; if (sit) { armarUY(); pintarSituacion(); dibujarNoPasa(); } }).catch(() => {});
+function armarUY() {
+  if (!sit || !mareasUY) return;
+  sit.mareografos = sit.mareografos || {};
+  const loc = t => new Date(t - 3 * 3600e3), iso = t => { const d = loc(t); return d.toISOString().slice(0, 13) + ':00:00'; };
+  const ahora = Date.now(), h0 = Math.floor((ahora - 3 * 3600e3) / 3600e3) * 3600e3 + 3 * 3600e3;
+  const maga = sit.mareografos.MAGA, e = maga && estimacion(maga), dif = e ? e.dif : 0;
+  for (const [cod, p, nombre, conViento] of [['COLO', 'colonia', 'Colonia', true], ['MVD', 'montevideo', 'Montevideo', false]]) {
+    const serie = mareasUY[p] && mareasUY[p].serie; if (!serie) continue;
+    const ast = [];
+    for (let t = h0 - 12 * 3600e3; t <= h0 + 36 * 3600e3; t += 3600e3) {
+      const d = loc(t), v = serie[d.toISOString().slice(0, 10)];
+      if (v) ast.push([iso(t), v[d.getUTCHours()] / 100]);
+    }
+    const d0 = conViento ? dif : 0;
+    sit.mareografos[cod] = { nombre, astronomica: ast, observada: ast.filter(x => x[0] <= iso(ahora)).map(x => [x[0], +(x[1] + d0).toFixed(2)]),
+      notaUY: conViento ? 'estimada (SOHMA + viento)' : 'predicción SOHMA' };
+  }
+}
 const alturaDe = (p, lat) => p.ref === 'colonia' ? alturaColonia() : alturaRio(lat);
 function alturaRio(lat) { // interpola San Fernando ↔ Buenos Aires por latitud; sin dato: 0 (cero de la carta, conservador)
   const m = sit && sit.mareografos, sf = m && ultimo(m.SFER && m.SFER.observada), ba = m && ultimo(m.BSAS && m.BSAS.observada);
@@ -639,6 +660,8 @@ const SITUACIONES = [ // lo que importa: Pilote Norden, San Isidro, Puerto de Bu
   { id: 'PNOR', titulo: 'Pilote Norden', viento: 'pnor' },
   { id: 'MAGA', titulo: 'Martín García' },
   { id: 'LPLA', titulo: 'La Plata' },
+  { id: 'COLO', titulo: 'Colonia' },
+  { id: 'MVD', titulo: 'Montevideo' },
 ];
 // Tendencia con hora: "▲ crece hasta las 21:45" (estimación SHN: astronómica + efecto del viento; si no alcanza, pleamar/bajamar SHN)
 function tendencia(est, puertoPB) {
@@ -662,7 +685,7 @@ function tarjeta(s) {
   const pb = s.id === 'SI' ? 'San Fernando' : s.id === 'BSAS' ? 'Buenos Aires' : null;
   const p = s.id === 'SI' ? pref['San Isidro'] : s.id === 'BSAS' ? pref['Buenos Aires'] : null;
   const chips = p ? (p.altura >= p.evacuacion ? '<span class="chip evac">Evacuación</span>' : p.altura >= p.alerta ? '<span class="chip alerta">Alerta</span>' : '') : '';
-  const det = (u ? (s.id === 'SI' ? 'San Fernando ' : '') + hora(u[0]) : 'sin lectura') + efectoViento(est && estimacion(est));
+  const det = (u ? (s.id === 'SI' ? 'San Fernando ' : '') + hora(u[0]) : 'sin lectura') + (est && est.notaUY ? ' · ' + est.notaUY : '') + efectoViento(est && estimacion(est));
   return `<div class="est"><h3>${esc(s.titulo)} ${chips}</h3><div><div class="alt">${u ? num(u[1]) + ' m' : '—'}</div>${tendencia(est, pb)}</div><div class="det">${det}</div></div>`;
 }
 function pintarSituacion() {
@@ -686,7 +709,7 @@ function pintarAvisos() {
   $('#avisos').innerHTML = h;
 }
 function cargarSituacion() {
-  fetch('datos/situacion.json', { cache: 'no-cache' }).then(r => r.json()).then(d => { sit = d; pintarSituacion(); dibujarNoPasa(); pintarAlertas(); })
+  fetch('datos/situacion.json', { cache: 'no-cache' }).then(r => r.json()).then(d => { sit = d; armarUY(); pintarSituacion(); dibujarNoPasa(); pintarAlertas(); })
     .catch(() => { $('#actualizado').textContent = 'sin conexión'; });
 }
 cargarSituacion(); setInterval(cargarSituacion, 10 * 60 * 1000);
