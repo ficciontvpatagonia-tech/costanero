@@ -29,7 +29,7 @@ button{cursor:pointer}
 .b-item{display:flex;align-items:baseline;gap:6px}
 .b-item b{font:700 34px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums}
 .b-item[hidden]{display:none}
-#bXte b{color:#ffd400}
+#bTiempo b{color:#ffd400}
 .b-item small{font-size:13px;color:#9fc3d8;text-transform:uppercase;letter-spacing:.04em}
 @media (orientation:landscape),(min-width:701px){.barra{right:auto;width:50%;border-radius:0 0 12px 0}}
 body>.det-barco{display:none}
