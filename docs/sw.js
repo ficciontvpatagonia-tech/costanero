@@ -1,5 +1,5 @@
 // Offline: la carta, las boyas y la app quedan guardadas; la situación del río se pide fresca y si no hay señal se usa la última.
-const V = 'costanero-v22';
+const V = 'costanero-v23';
 const BASE = ['./', 'index.html', 'estilo.css', 'app.js', 'manifest.webmanifest', 'icono-192.png', 'icono-512.png',
   'datos/carta.geojson', 'datos/rios.geojson', 'datos/boyas.json', 'datos/clubes.json', 'datos/veriles.json', 'datos/pasos_mitre.json', 'datos/referencias.json', 'datos/profundidad.json',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',

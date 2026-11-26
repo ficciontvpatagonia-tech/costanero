@@ -242,3 +242,9 @@ input.renombrar{width:100%;font:600 17px/1.2 "Barlow Condensed",sans-serif;paddi
 @media (max-width:700px){.rosa{left:max(12px,env(safe-area-inset-left))}}
 .et-puerto{font-size:16px;letter-spacing:.02em}
 .beta{display:inline-block;vertical-align:middle;margin-left:4px;padding:2px 7px;border-radius:6px;background:#ff7a00;color:#fff;font:700 13px/1.2 Barlow,sans-serif;letter-spacing:.04em;text-transform:uppercase}
+
+.alertas.aviso-inicio{background:#0b2a3c;border:2px solid #ffd400;padding:14px 16px}
+.aviso-inicio[hidden]{display:none}
+.aviso-inicio strong{color:#ffd400}
+.aviso-inicio p{margin:6px 0}
+.entendido{display:block;width:100%;margin-top:10px;min-height:46px;border:0;border-radius:10px;background:#ffd400;color:#000;font:700 19px/1 "Barlow Condensed",sans-serif}

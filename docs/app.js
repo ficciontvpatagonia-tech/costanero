@@ -799,6 +799,8 @@ function alertasDelDia() {
   }
   return A;
 }
+// Aviso al abrir la app: primero esto, después las alertas del día
+$('#avisoOk').onclick = () => { $('#avisoInicio').hidden = true; pintarAlertas(); };
 function pintarAlertas() {
   const caja = $('#alertas'); if (!caja) return;
   const A = alertasDelDia(), clave = hoyISO() + '|' + A.map(a => a.t).join('|');
@@ -806,7 +808,7 @@ function pintarAlertas() {
   const lista = $('#listaAlertas'), cuenta = $('#cuentaAlertas');
   if (lista) lista.innerHTML = A.length ? A.map(a => `<div class="alerta-item ${a.n === 'ambar' ? 'ambar' : ''}">${esc(a.t)}</div>`).join('') : '<p>Sin alertas hoy.</p>';
   if (cuenta) { cuenta.hidden = !A.length; cuenta.textContent = A.length; cuenta.className = 'cuenta' + (A.some(a => a.n === 'rojo') ? '' : ' ambar'); }
-  if (!A.length || leer('alertaCerrada', '') === clave) { caja.hidden = true; return; }
+  if (!A.length || leer('alertaCerrada', '') === clave || !$('#avisoInicio').hidden) { caja.hidden = true; return; } // el aviso de inicio va primero
   const nuevo = caja.dataset.clave !== clave; caja.dataset.clave = clave;
   caja.className = 'alertas ' + (A.some(a => a.n === 'rojo') ? 'rojo' : 'ambar');
   caja.innerHTML = `<button class="cerrar" id="cerrarAlerta" aria-label="Cerrar aviso">×</button><strong>Hoy</strong><ul>${A.map(a => `<li>${esc(a.t)}</li>`).join('')}</ul><button class="ver" id="verAlertas">Ver en Alertas</button>`;
