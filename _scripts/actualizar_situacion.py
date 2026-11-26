@@ -121,7 +121,47 @@ def smn_avisos():
     return out
 
 
+PREDICCION = R / "docs" / "datos" / "prediccion.json"
+
+
+def prediccion_larga():
+    """Marea astronómica SHN de hoy a +4 días por mareógrafo (la API la da en ventanas de ~20 h según la fecha pedida).
+    Es la misma para todos: se baja acá y no desde cada celular (el SHN corta con 429 si le llegan muchos pedidos).
+    Solo si el archivo tiene más de 12 h; de a un pedido por segundo."""
+    import time
+    if PREDICCION.exists():
+        viejo = json.loads(PREDICCION.read_text(encoding="utf-8"))
+        hace = datetime.datetime.now(AR) - datetime.datetime.fromisoformat(viejo["generado"])
+        if hace < datetime.timedelta(hours=12):
+            return "al día"
+    est = {}
+    for cod in ESTACIONES:
+        serie = {}
+        for desp in (0, 20, 40, 60, 80, 100):
+            fecha = (datetime.datetime.now(AR) + datetime.timedelta(hours=desp)).strftime("%Y%m%d%H%M")
+            for intento in range(3):
+                try:
+                    d = json.loads(bajar(f"https://www.hidro.gob.ar/api/v1/AlturasHorarias/{cod}/{fecha}"))
+                    for x in d.get("astronomica", []):
+                        if x.get("altura") is not None: serie[x["fecha"]] = round(x["altura"], 2)
+                    break
+                except Exception:
+                    time.sleep(20)
+            time.sleep(1)
+        if serie: est[cod] = sorted(serie.items())
+    if not est:
+        raise RuntimeError("sin datos de predicción")
+    PREDICCION.write_text(json.dumps({"generado": datetime.datetime.now(AR).isoformat(timespec="minutes"),
+                                      "fuente": "SHN, marea astronómica (alturas horarias)", "estaciones": est},
+                                     ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    return f"{sum(len(v) for v in est.values())} horas"
+
+
 def main():
+    try:
+        print("predicción:", prediccion_larga())
+    except Exception as e:
+        print("predicción: no se pudo,", e)
     previo = json.loads(SALIDA.read_text(encoding="utf-8")) if SALIDA.exists() else {}
     sit = {"generado": datetime.datetime.now(AR).isoformat(timespec="minutes"), "errores": []}
     for clave, fn in (("mareografos", mareografos), ("radioavisos", radioavisos), ("prefectura", prefectura), ("smn", smn_avisos)):

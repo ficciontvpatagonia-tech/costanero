@@ -19,7 +19,8 @@ for l in lineas:
         izq.append(Point((x1 + x2) / 2 - dy / n * 2e-5, (y1 + y2) / 2 + dx / n * 2e-5))
 tierra = unary_union([c for c in caras if sum(c.contains(p) for p in izq) > 0])
 colonia = json.load(open(R / "docs/datos/carta_colonia.geojson"))["caja"]
-tierra = tierra.difference(box(colonia["w"], colonia["s"], colonia["e"], colonia["n"])).intersection(caja).simplify(0.00003).buffer(0)
+# se deja ~50 m de solape con la tierra de la carta de Colonia: sin rendija (línea fina) en el borde de su caja
+tierra = tierra.difference(box(colonia["w"], colonia["s"], colonia["e"], colonia["n"]).buffer(-0.0005, join_style=2)).intersection(caja).simplify(0.00003).buffer(0)
 gs = [tierra] if tierra.geom_type == "Polygon" else list(tierra.geoms)
 feats = [{"type": "Feature", "properties": {"z": "tierra", "fuente": "OSM"}, "geometry": json.loads(json.dumps(mapping(g)), parse_float=lambda x: round(float(x), 6))} for g in gs if g.area > 1e-8]
 (R / "docs/datos/costa_uy.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": feats}, separators=(",", ":")), encoding="utf-8")

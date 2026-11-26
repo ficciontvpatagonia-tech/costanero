@@ -62,8 +62,10 @@ document.getElementById('mapa').style.background = col('agua');
 
 /* ---------- Grilla de latitud y longitud ---------- */
 const grilla = L.layerGroup().addTo(mapa);
+let verCoords = leer('verCoords', false); // Info → «Mostrar coordenadas»; por defecto oculta (el mapa va más liviano)
 function dibujarGrilla() {
   grilla.clearLayers();
+  if (!verCoords) return;
   const z = mapa.getZoom(), b = mapa.getBounds().pad(0.1);
   const paso = z >= 15 ? 0.5 : z >= 13 ? 1 : z >= 11 ? 5 : 10; // minutos
   const p = paso / 60, cg = col('grilla');
@@ -165,6 +167,23 @@ function popupBoya(b, tp) {
     + `<p style="font-variant-numeric:tabular-nums">${esc(fmtLat(b.lat))}<br>${esc(fmtLon(b.lon))}</p>`
     + (b.status && b.status !== 'OK' ? `<p><strong>${esc(b.status)}</strong></p>` : '') + desde;
 }
+/* Nombres de boyas: un par (roja y verde del mismo Km, o las dos marcas de un mismo naufragio) lleva el nombre UNA vez, en el medio */
+const limpiarNombre = t => String(t).replace(/\s*\((roj[ao]|verde)\)/ig, '').replace(/\s+(roj[ao]|verde)\b/ig, '').replace(/\s+EX\s+C\d+\b/i, '').trim();
+const etiquetasPar = new Map(); // clave → [{ m, ll, n }]
+function etiquetaBoya(ll, texto, { grupo = etBoyas, clase = 'et-boya', dx = 12, dy = -22, interactive = false, alTocar = null } = {}) {
+  ll = L.latLng(ll); const t = limpiarNombre(texto), clave = t.toUpperCase();
+  const previos = etiquetasPar.get(clave) || [], par = previos.find(e => e.n === 1 && e.ll.distanceTo(ll) < 600);
+  if (par) { // segunda boya del par: se mueve la etiqueta al medio y se centra
+    par.n = 2; const medio = L.latLng((par.ll.lat + ll.lat) / 2, (par.ll.lng + ll.lng) / 2);
+    par.m.setLatLng(medio).setIcon(L.divIcon({ className: '', html: `<div class="${clase}" style="transform:translate(-50%,-50%)">${esc(t)}</div>`, iconSize: [0, 0] }));
+    return par.m;
+  }
+  const m = L.marker(ll, { pane: 'etiquetas', interactive, bubblingMouseEvents: false,
+    icon: L.divIcon({ className: '', html: `<div class="${clase}" style="transform:translate(${dx}px,${dy}px)">${esc(t)}</div>`, iconSize: [0, 0] }) });
+  if (alTocar) m.on('click', alTocar);
+  m.addTo(grupo); previos.push({ m, ll, n: 1 }); etiquetasPar.set(clave, previos);
+  return m;
+}
 let boyasFecha = '';
 fetch('datos/boyas.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
   boyasFecha = d.archivo_modificado ? new Date(d.archivo_modificado).toLocaleDateString('es-AR') : (d.descargado || '');
@@ -174,8 +193,7 @@ fetch('datos/boyas.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
     L.marker([b.lat, b.lon], { icon: iconoBoya(tp), title: b.name, keyboard: true }).addTo(capaBoyas);
     ficha(capaBoyas.getLayers()[capaBoyas.getLayers().length - 1], b.lat, b.lon, nombreLindo(b.name.replace(/\s*\((Roja|Verde)\)/i, '')), [NOMBRE_TIPO[tp.k] + (tp.d ? ' ' + tp.d : ''), b.characteristics ? b.characteristics.replace(/\s*\(.*\)\s*$/, '') : '', b.status && b.status !== 'OK' ? b.status : ''].filter(Boolean).join(' · '));
     const destacada = DESTACADAS.includes(b.name.toUpperCase()), mk = capaBoyas.getLayers()[capaBoyas.getLayers().length - 1];
-    L.marker([b.lat, b.lon], { pane: 'etiquetas', interactive: destacada, bubblingMouseEvents: false,
-      icon: L.divIcon({ className: '', html: `<div class="${destacada ? 'et-boya et-destacada' : 'et-boya'}" style="transform:translate(12px,-22px)">${esc(destacada ? nombreLindo(b.name) : b.name.replace(/\s*\((Roja|Verde)\)/i, ''))}</div>`, iconSize: [0, 0] }) }).on('click', () => mk.openPopup()).addTo(destacada ? etDestacadas : etBoyas);
+    etiquetaBoya([b.lat, b.lon], destacada ? nombreLindo(b.name) : b.name, { grupo: destacada ? etDestacadas : etBoyas, clase: destacada ? 'et-boya et-destacada' : 'et-boya', interactive: destacada, alTocar: () => mk.openPopup() });
   }
   etiquetasSegunZoom();
   dibujarRuta();
@@ -322,7 +340,8 @@ const CapaSond = L.GridLayer.extend({
   },
 });
 nuevoPanel('sondajes', 250);
-const capaSond = new CapaSond({ pane: 'sondajes', tileSize: TILE, minZoom: 13, updateWhenZooming: false, keepBuffer: 1 }).addTo(mapa);
+const capaSond = new CapaSond({ pane: 'sondajes', tileSize: TILE, minZoom: 13, updateWhenZooming: false, keepBuffer: 1 });
+let verSond = leer('verSond', false); if (verSond) capaSond.addTo(mapa); // Info → «Mostrar profundidades»; por defecto ocultas
 fetch('datos/sondajes.json').then(r => r.json()).then(d => { sondajes = [...d.shn, ...d.sohma]; capaSond.redraw(); }).catch(() => {});
 function pintarSondajes(g, c, N, x0, y0) {
   if (!sondajes.length) return;
@@ -489,7 +508,7 @@ fetch('datos/senales_vnt.json', { cache: 'no-cache' }).then(r => r.json()).then(
     const k = x.f === 'LATERAL' ? (col.toUpperCase() === '#960018' ? 'roja' : 'verde') : x.f === 'PELIGRO' ? 'peligro' : x.f === 'C. PREFER.' ? 'bif' : 'especial';
     const esKm = /^\d+(\.\d+)?$/.test(String(x.km)), nom = esKm ? `Km ${String(x.km).replace('.', ',')}` : (k === 'peligro' ? String(x.km).toLowerCase().replace(/(^|[\s\-/.])\S/g, c => c.toUpperCase()) : String(x.km)), sec = SECTOR[x.sec] ?? x.sec;
     ficha(L.marker([x.lat, x.lon], { icon: iconoBoya({ k }), title: `${sec} ${nom}` }), x.lat, x.lon, `${nom}${sec ? ' · ' + sec : ''}`, NOMBRE_TIPO[k]).addTo(capaBoyas);
-    L.marker([x.lat, x.lon], { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya" style="transform:translate(12px,-22px)">${esc(nom)}</div>`, iconSize: [0, 0] }) }).addTo(etBoyas);
+    etiquetaBoya([x.lat, x.lon], nom);
   }
   dibujarPasillo();
 }).catch(() => {});
@@ -556,7 +575,7 @@ fetch('datos/peligros.json', { cache: 'no-cache' }).then(r => r.json()).then(d =
     const icon = SVG_PEL[k] ? L.divIcon({ className: 'toque', html: SVG_PEL[k], iconSize: k === 'naufragio' ? [26, 16] : k === 'pilote' ? [14, 14] : [18, 18] }) : iconoBoya({ k });
     ficha(L.marker([p.lat, p.lon], { icon, title: p.n }), p.lat, p.lon, p.n, DET_PEL[p.t] + ' · SHN H-155').addTo(capaBoyas);
     if (p.t === 'naufragio' || p.t === 'pilote' || p.t === 'especial' || p.n.startsWith('Ex-Pilote'))
-      L.marker([p.lat, p.lon], { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya" style="transform:translate(12px,-6px)">${esc(p.n.split(' · ')[0])}</div>`, iconSize: [0, 0] }) }).addTo(etBoyas);
+      etiquetaBoya([p.lat, p.lon], p.n.split(' · ')[0], { dy: -6 });
   }
 }).catch(() => {});
 
@@ -749,18 +768,36 @@ function pintarSemaforo() {
 /* Gráfico de altura: horas abajo y se desliza a la derecha (como el viento), 12 h atrás y 3 días adelante.
    Colores: real (medida SHN) azul · predicción (tabla SHN/SOHMA) ámbar · con el viento de ahora (predicción + diferencia actual) magenta */
 const PXH = 22, ANTES_H = 12, DESPUES_H = 72, EST_H = 12;
+/* Pedidos al SHN: de a uno y espaciados (su servidor corta con "429: demasiados pedidos" si llegan juntos); tras un 429, 5 min de pausa */
+let pausaSHN = 0, colaSHN = Promise.resolve();
+const espera = ms => new Promise(r => setTimeout(r, ms));
+function pedirSHN(cod, fecha) {
+  const pedido = colaSHN.then(async () => {
+    if (Date.now() < pausaSHN) throw new Error('pausa');
+    const r = await fetch(`https://www.hidro.gob.ar/api/v1/AlturasHorarias/${cod}/${fecha}`, { cache: 'no-store' });
+    if (r.status === 429) { pausaSHN = Date.now() + 5 * 60e3; throw new Error('429'); }
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  });
+  colaSHN = pedido.catch(() => {}).then(() => espera(350));
+  return pedido;
+}
+const fechaSHN = (desplH = 0) => new Date(Date.now() + (desplH - 3) * 3600e3).toISOString().replace(/\D/g, '').slice(0, 12); // AAAAMMDDhhmm, hora argentina
 const COL_REAL = '#1f8fe0', COL_PRED = '#e39b0b', COL_VIENTO = '#c2188f';
 const astroLargo = {}; // cod → { t, serie } predicción SHN hasta +3 días (la API la da por ventanas de ~20 h)
+// Predicción de 3–4 días: la baja el Action una vez para todos (prediccion.json); el celular solo le pide al SHN si ese archivo no alcanza
+let prediccionArch = {};
+fetch('datos/prediccion.json', { cache: 'no-cache' }).then(r => r.json()).then(d => { prediccionArch = d.estaciones || {}; if (sit) pintarCurva(); }).catch(() => {});
 function pedirAstroLargo(cod) {
   if (!EST_SHN[cod]) return;
+  const pa = prediccionArch[cod]; if (pa && pa.length && +new Date(pa[pa.length - 1][0]) > Date.now() + (DESPUES_H - 2) * 3600e3) return; // el archivo ya cubre
   const c = astroLargo[cod]; if (c && (c.cargando || Date.now() - c.t < 3 * 3600e3)) return;
   astroLargo[cod] = { serie: c ? c.serie : [], t: c ? c.t : 0, cargando: true };
-  const fechas = [20, 40, 60, 80].map(hh => new Date(Date.now() + (hh - 3) * 3600e3).toISOString().replace(/\D/g, '').slice(0, 12));
-  Promise.allSettled(fechas.map(f => fetch(`https://www.hidro.gob.ar/api/v1/AlturasHorarias/${cod}/${f}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))))
+  Promise.allSettled([20, 40, 60, 80].map(hh => pedirSHN(cod, fechaSHN(hh))))
     .then(rs => {
       const m = new Map();
       for (const r of rs) if (r.status === 'fulfilled') for (const x of r.value.astronomica || []) if (x.altura != null) m.set(x.fecha, +x.altura.toFixed(2));
-      astroLargo[cod] = m.size ? { t: Date.now(), serie: [...m].sort((a, b) => a[0] < b[0] ? -1 : 1) } : { ...astroLargo[cod], cargando: false, t: Date.now() - 2.5 * 3600e3 }; // sin red: reintenta en ~30 min
+      astroLargo[cod] = m.size ? { t: Date.now(), serie: [...m].sort((a, b) => a[0] < b[0] ? -1 : 1) } : { ...astroLargo[cod], cargando: false, t: Date.now() - 3 * 3600e3 + 5 * 60e3 }; // sin red o SHN saturado: reintenta en ~5 min
       if (zonaSel.value === cod) pintarCurva();
     });
 }
@@ -772,7 +809,7 @@ function prediccionDe(z, est, t0, t1) {
     return out;
   }
   const m = new Map((est.astronomica || []).map(x => [x[0], x[1]]));
-  for (const x of (astroLargo[z] && astroLargo[z].serie) || []) if (!m.has(x[0])) m.set(x[0], x[1]);
+  for (const x of [...(prediccionArch[z] || []), ...((astroLargo[z] && astroLargo[z].serie) || [])]) if (!m.has(x[0])) m.set(x[0], x[1]);
   return [...m].filter(x => { const t = +new Date(x[0]); return t >= t0 && t <= t1; }).sort((a, b) => a[0] < b[0] ? -1 : 1);
 }
 function curva(z, est, conLim) {
@@ -862,9 +899,15 @@ function tarjeta(s) {
   const det = (u ? (s.id === 'SI' ? 'San Fernando ' : '') + hora(u[0]) : 'sin lectura') + (est && est.notaUY ? ' · ' + est.notaUY : '') + efectoViento(est && estimacion(est));
   return `<div class="est"><h3>${esc(s.titulo)} ${chips}</h3><div><div class="alt">${u ? num(u[1]) + ' m' : '—'}</div>${tendencia(est, pb)}</div><div class="det">${det}</div></div>`;
 }
+// En la hoja de mareas solo la zona elegida (por defecto San Isidro, con el mareógrafo de San Fernando)
+function pintarEstacion() {
+  if (!sit) return;
+  const z = zonaSel.value === 'SFER' ? 'SI' : zonaSel.value, s = SITUACIONES.find(x => x.id === z) || SITUACIONES[0];
+  $('#estaciones').innerHTML = tarjeta(s);
+}
 function pintarSituacion() {
   if (!sit) return;
-  $('#estaciones').innerHTML = SITUACIONES.map(tarjeta).join('');
+  pintarEstacion();
   const tDatos = Math.max(+new Date(sit.generado) || 0, shnVivo), edadMin = (Date.now() - tDatos) / 60000, act = $('#actualizado');
   act.textContent = 'datos ' + new Date(tDatos).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
     + (edadMin > 90 ? ` · ATENCIÓN: datos de hace ${edadMin > 120 ? Math.round(edadMin / 60) + ' h' : Math.round(edadMin) + ' min'}` : '');
@@ -886,10 +929,12 @@ function pintarAvisos() {
    situacion.json sigue trayendo avisos, Prefectura y SMN, y es el respaldo si el SHN no responde. */
 const EST_SHN = { PNOR: 'Pilote Norden', SFER: 'San Fernando', BSAS: 'Buenos Aires', MAGA: 'Martín García', LPLA: 'La Plata' };
 const vivo = {}; let shnVivo = 0;
-function alturasEnVivo() {
-  const f = new Date(Date.now() - 3 * 3600e3).toISOString().replace(/\D/g, '').slice(0, 12); // AAAAMMDDhhmm, hora argentina
-  return Promise.allSettled(Object.keys(EST_SHN).map(cod =>
-    fetch(`https://www.hidro.gob.ar/api/v1/AlturasHorarias/${cod}/${f}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(d => {
+// Solo lo necesario: San Fernando y Buenos Aires (rayado y Costanero), Martín García (marea de Colonia) y la zona elegida
+const zonasVivo = () => [...new Set(['SFER', 'BSAS', 'MAGA', leer('zonaMarea', 'SFER')])].filter(c => EST_SHN[c]); // (zonaSel todavía no existe al arrancar)
+function alturasEnVivo(codigos = zonasVivo()) {
+  const f = fechaSHN(0);
+  return Promise.allSettled(codigos.map(cod =>
+    pedirSHN(cod, f).then(d => {
       const obs = (d.lecturas || []).filter(x => x.altura != null).map(x => [x.fecha, +x.altura.toFixed(2)]);
       if (!obs.length) return;
       vivo[cod] = { observada: obs, astronomica: (d.astronomica || []).filter(x => x.altura != null).map(x => [x.fecha, +x.altura.toFixed(2)]), nota: d.observaciones || '' };
@@ -1292,11 +1337,12 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 const MAREA_MIN = -0.5, MAREA_MAX = 3.0, MAREA_ALTA = 1.5;
 const zonaSel = $('#zonaMarea'); zonaSel.value = leer('zonaMarea', 'SFER'); if (!zonaSel.value) zonaSel.value = 'SFER';
 const PB_ZONA = { SFER: 'San Fernando', BSAS: 'Buenos Aires' };
-zonaSel.onchange = () => { guardar('zonaMarea', zonaSel.value); pintarBarraMarea(); pintarCurva(); };
+zonaSel.onchange = () => { guardar('zonaMarea', zonaSel.value); pintarEstacion(); pintarBarraMarea(); pintarCurva();
+  if (EST_SHN[zonaSel.value] && !vivo[zonaSel.value]) alturasEnVivo([zonaSel.value]).then(() => { if (aplicarVivo()) repintar(); }); };
 function pintarCurva() {
   const z = zonaSel.value, est = sit && sit.mareografos && sit.mareografos[z]; if (!est) return;
   $('#tituloCurva').textContent = 'Altura · ' + zonaSel.selectedOptions[0].textContent;
-  pedirAstroLargo(z);
+  if (!$('#hojaMarea').hidden) pedirAstroLargo(z); // 3 días de predicción: solo si se está mirando
   curva(z, est, z === 'SFER');
 }
 function pintarBarraMarea() {
@@ -1314,7 +1360,7 @@ function pintarBarraMarea() {
   $('#mHora').textContent = m && m[2] ? m[2] : '';
   b.title = `${txtAltura(a, zonaSel.selectedOptions[0].textContent)} · tocá para ver las mareas`;
 }
-function abrirMarea() { abrirPanel(false); $('#hojaViento').hidden = true; $('#hojaMarea').hidden = false; const c = $('#curvaSF'); c._dibujar && c._dibujar(); c._alAhora && c._alAhora(); cargarCorriente(); }
+function abrirMarea() { abrirPanel(false); $('#hojaViento').hidden = true; $('#hojaMarea').hidden = false; const c = $('#curvaSF'); c._dibujar && c._dibujar(); c._alAhora && c._alAhora(); pedirAstroLargo(zonaSel.value); cargarCorriente(); }
 /* Corriente: modelo oceánico global (Open-Meteo Marine, celda ~8 km): orientativa */
 let corrT = 0;
 async function cargarCorriente() {
@@ -1357,6 +1403,15 @@ function arrastrable(hoja, cerrar, habilitado) {
   });
 }
 arrastrable($('#hojaMarea')); arrastrable($('#hojaViento'));
+/* Info: mostrar/ocultar coordenadas (grilla de lat/lon) y profundidades de la carta (sondajes) */
+function pintarBotonesCapas() {
+  const bc = $('#btnCoords'), bs = $('#btnSond');
+  bc.textContent = verCoords ? 'Ocultar coordenadas' : 'Mostrar coordenadas'; bc.setAttribute('aria-pressed', verCoords);
+  bs.textContent = verSond ? 'Ocultar profundidades' : 'Mostrar profundidades'; bs.setAttribute('aria-pressed', verSond);
+}
+$('#btnCoords').onclick = () => { verCoords = !verCoords; guardar('verCoords', verCoords); dibujarGrilla(); pintarBotonesCapas(); };
+$('#btnSond').onclick = () => { verSond = !verSond; guardar('verSond', verSond); verSond ? capaSond.addTo(mapa) : capaSond.remove(); pintarBotonesCapas(); };
+pintarBotonesCapas();
 arrastrable($('#panel'), () => abrirPanel(false), () => innerWidth <= 700);
 if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__dbg = { dibujarNoPasa, profs, get sit() { return sit; } }; // solo pruebas locales
 
