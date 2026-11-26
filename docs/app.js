@@ -172,7 +172,7 @@ const GRAD = { dia: [[86, 172, 226], [246, 251, 255]], noche: [[18, 58, 92], [52
 const profs = []; // grillas de profundidad (una por zona/carta), cada una con su referencia de altura
 const LAT_SF = -34.44, LAT_BA = -34.58;
 // Colonia (SOHMA): profundidades al plano de reducción de Colonia. Sin altura en vivo todavía → 0 (conservador: como si el río estuviera en ese plano)
-function alturaColonia() { const u = sit && sit.mareografos && sit.mareografos.COLO && ultimo(sit.mareografos.COLO.observada); return u ? u[1] : 0; }
+function alturaColonia() { const a = alturaAhora(sit && sit.mareografos && sit.mareografos.COLO); return a ? a.h : 0; }
 /* Colonia y Montevideo: predicción SOHMA (tabla horaria) + efecto del viento medido en Martín García (Colonia) */
 let mareasUY = null;
 fetch('datos/mareas_uy.json').then(r => r.json()).then(d => { mareasUY = d; if (sit) { armarUY(); pintarSituacion(); dibujarNoPasa(); } }).catch(() => {});
@@ -196,8 +196,8 @@ function armarUY() {
 }
 const alturaDe = (p, lat) => p.ref === 'colonia' ? alturaColonia() : alturaRio(lat);
 function alturaRio(lat) { // interpola San Fernando ↔ Buenos Aires por latitud; sin dato: 0 (cero de la carta, conservador)
-  const m = sit && sit.mareografos, sf = m && ultimo(m.SFER && m.SFER.observada), ba = m && ultimo(m.BSAS && m.BSAS.observada);
-  const hs = sf ? sf[1] : (ba ? ba[1] : 0), hb = ba ? ba[1] : hs;
+  const m = sit && sit.mareografos, sf = m && alturaAhora(m.SFER), ba = m && alturaAhora(m.BSAS);
+  const hs = sf ? sf.h : (ba ? ba.h : 0), hb = ba ? ba.h : hs;
   const t = Math.min(Math.max((lat - LAT_SF) / (LAT_BA - LAT_SF), 0), 1);
   return hs + (hb - hs) * t;
 }
@@ -611,13 +611,27 @@ function estimacion(est) { // astronómica + diferencia actual (observada − as
   const dif = a ? u[1] - a[1] : 0;
   return { dif, futuro: ast.filter(x => x[0] > u[0]).map(x => [x[0], +(x[1] + dif).toFixed(2)]) };
 }
+// Altura "ahora": la última lectura; si tiene más de 90 min (sin señal, SHN caído) se estima con la astronómica + la diferencia
+// de esa lectura, para que el rayado y la barra no se queden con una altura vieja mientras el río sube o baja
+function alturaAhora(est) {
+  const u = est && ultimo(est.observada); if (!u) return null;
+  const ahora = Date.now();
+  if (ahora - new Date(u[0]) < 90 * 60e3) return { t: u[0], h: u[1], estimada: false };
+  const e = estimacion(est), pts = [u, ...(e ? e.futuro : [])];
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const t0 = +new Date(pts[i][0]), t1 = +new Date(pts[i + 1][0]);
+    if (ahora >= t0 && ahora <= t1) return { t: new Date(ahora).toISOString(), h: +(pts[i][1] + (pts[i + 1][1] - pts[i][1]) * (ahora - t0) / Math.max(t1 - t0, 1)).toFixed(2), estimada: true };
+  }
+  return { t: u[0], h: u[1], estimada: false, vieja: true };
+}
+const txtAltura = (a, nom) => `${nom} ${a.estimada ? '≈' : ''}${num(a.h)} m (${a.estimada ? 'estimada' : hora(a.t)})`;
 
 function pintarSemaforo() {
   const luz = $('#semLuz'), det = $('#semDet');
   const sf = sit && sit.mareografos && sit.mareografos.SFER;
-  const u = sf && ultimo(sf.observada);
-  if (!u) { luz.className = 'sem-luz'; luz.textContent = 'Sin dato de altura'; det.textContent = ''; return; }
-  const c = parseFloat(calado.value) || 0, agua = DETERMINANTE + u[1], margen = agua - c;
+  const a = alturaAhora(sf);
+  if (!a) { luz.className = 'sem-luz'; luz.textContent = 'Sin dato de altura'; det.textContent = ''; return; }
+  const c = parseFloat(calado.value) || 0, agua = DETERMINANTE + a.h, margen = agua - c;
   luz.className = 'sem-luz ' + (margen >= 0.5 ? 'verde' : margen >= 0.2 ? 'ambar' : 'rojo');
   luz.textContent = 'Costanero · ' + (margen >= 0.5 ? 'Pasa' : margen >= 0.2 ? 'Justo' : 'No pasa');
   const est = estimacion(sf);
@@ -627,7 +641,7 @@ function pintarSemaforo() {
     if (margen < 0.5 && ok) prox = ` · da desde las ${hora(ok[0])}`;
     else if (margen >= 0.2 && malo) prox = ` · deja de dar ${hora(malo[0])}`;
   }
-  det.textContent = `Bajo la quilla ${num(margen)} m · San Fernando ${num(u[1])} m (${hora(u[0])})${prox}`;
+  det.textContent = `Bajo la quilla ${num(margen)} m · ${txtAltura(a, 'San Fernando')}${prox}`;
   const ol = (sit.radioavisos?.olas_costanero_km17 || [])[0];
   if (ol) det.textContent += ` · olas ${num(Math.max(ol.manana.alt, ol.tarde.alt), 1)} m`;
   pintarCurva();
@@ -691,8 +705,8 @@ function tarjeta(s) {
 function pintarSituacion() {
   if (!sit) return;
   $('#estaciones').innerHTML = SITUACIONES.map(tarjeta).join('');
-  const edadMin = (Date.now() - new Date(sit.generado)) / 60000, act = $('#actualizado');
-  act.textContent = 'datos ' + new Date(sit.generado).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+  const tDatos = Math.max(+new Date(sit.generado) || 0, shnVivo), edadMin = (Date.now() - tDatos) / 60000, act = $('#actualizado');
+  act.textContent = 'datos ' + new Date(tDatos).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
     + (edadMin > 90 ? ` · ATENCIÓN: datos de hace ${edadMin > 120 ? Math.round(edadMin / 60) + ' h' : Math.round(edadMin) + ' min'}` : '');
   act.style.color = edadMin > 90 ? '#ffb347' : ''; act.style.fontWeight = edadMin > 90 ? '700' : '';
   pintarSemaforo();
@@ -708,9 +722,37 @@ function pintarAvisos() {
 
   $('#avisos').innerHTML = h;
 }
+/* Alturas del SHN en vivo: su API responde directo al navegador, así la altura no depende de que corra el Action.
+   situacion.json sigue trayendo avisos, Prefectura y SMN, y es el respaldo si el SHN no responde. */
+const EST_SHN = { PNOR: 'Pilote Norden', SFER: 'San Fernando', BSAS: 'Buenos Aires', MAGA: 'Martín García', LPLA: 'La Plata' };
+const vivo = {}; let shnVivo = 0;
+function alturasEnVivo() {
+  const f = new Date(Date.now() - 3 * 3600e3).toISOString().replace(/\D/g, '').slice(0, 12); // AAAAMMDDhhmm, hora argentina
+  return Promise.allSettled(Object.keys(EST_SHN).map(cod =>
+    fetch(`https://www.hidro.gob.ar/api/v1/AlturasHorarias/${cod}/${f}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(d => {
+      const obs = (d.lecturas || []).filter(x => x.altura != null).map(x => [x.fecha, +x.altura.toFixed(2)]);
+      if (!obs.length) return;
+      vivo[cod] = { observada: obs, astronomica: (d.astronomica || []).filter(x => x.altura != null).map(x => [x.fecha, +x.altura.toFixed(2)]), nota: d.observaciones || '' };
+      shnVivo = Date.now();
+    })));
+}
+function aplicarVivo() { // pone en sit lo bajado en vivo si es más nuevo; devuelve si cambió algo
+  if (!sit) return false;
+  const m = sit.mareografos = sit.mareografos || {}; let cambio = false;
+  for (const [cod, v] of Object.entries(vivo)) {
+    const est = m[cod] = m[cod] || { nombre: EST_SHN[cod], observada: [], astronomica: [] }, u = ultimo(est.observada), lv = ultimo(v.observada);
+    if (u && lv[0] < u[0]) continue;
+    if (!u || lv[0] !== u[0] || lv[1] !== u[1]) cambio = true;
+    est.observada = v.observada; if (v.astronomica.length) est.astronomica = v.astronomica; est.nota = v.nota;
+  }
+  return cambio;
+}
+function repintar() { armarUY(); pintarSituacion(); dibujarNoPasa(); pintarAlertas(); }
 function cargarSituacion() {
-  fetch('datos/situacion.json', { cache: 'no-cache' }).then(r => r.json()).then(d => { sit = d; armarUY(); pintarSituacion(); dibujarNoPasa(); pintarAlertas(); })
-    .catch(() => { $('#actualizado').textContent = 'sin conexión'; });
+  const pv = alturasEnVivo();
+  fetch('datos/situacion.json', { cache: 'no-cache' }).then(r => r.json()).then(d => { sit = d; aplicarVivo(); repintar(); })
+    .catch(() => { if (sit) repintar(); else $('#actualizado').textContent = 'sin conexión'; }) // sin señal: la estimación sigue avanzando
+    .then(() => pv).then(() => { if (aplicarVivo()) repintar(); });
 }
 cargarSituacion(); setInterval(cargarSituacion, 10 * 60 * 1000);
 
@@ -1097,7 +1139,7 @@ function pintarCurva() {
   curva(est, estimacion(est), z === 'SFER');
 }
 function pintarBarraMarea() {
-  const z = zonaSel.value, b = $('#barraMarea'), sf = sit && sit.mareografos && sit.mareografos[z], u = sf && ultimo(sf.observada);
+  const z = zonaSel.value, b = $('#barraMarea'), sf = sit && sit.mareografos && sit.mareografos[z], a = alturaAhora(sf), u = a && [a.t, a.h];
   if (!u) { $('#mNum').textContent = '—'; $('#mFl').textContent = $('#mHora').textContent = ''; return; }
   const c = parseFloat(calado.value) || 0, margen = DETERMINANTE + u[1] - c;
   const nivel = u[1] <= UMBRAL_BAJANTE || (z === 'SFER' && margen < 0.2) ? 'bajo' : u[1] >= MAREA_ALTA ? 'alto' : 'medio';
@@ -1109,7 +1151,7 @@ function pintarBarraMarea() {
   const t = tendencia(sf, PB_ZONA[z]), m = t.match(/(▲|▼)[^<]*?(\d\d:\d\d)?</);
   $('#mFl').textContent = m ? m[1] : ''; $('#mFl').className = 'm-fl ' + (m && m[1] === '▲' ? 'sube' : 'baja');
   $('#mHora').textContent = m && m[2] ? m[2] : '';
-  b.title = `${zonaSel.selectedOptions[0].textContent} ${num(u[1])} m (${hora(u[0])}) · tocá para ver las mareas`;
+  b.title = `${txtAltura(a, zonaSel.selectedOptions[0].textContent)} · tocá para ver las mareas`;
 }
 function abrirMarea() { abrirPanel(false); $('#hojaViento').hidden = true; $('#hojaMarea').hidden = false; const c = $('#curvaSF'); c._dibujar && c._dibujar(); cargarCorriente(); }
 /* Corriente: modelo oceánico global (Open-Meteo Marine, celda ~8 km): orientativa */

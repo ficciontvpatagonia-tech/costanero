@@ -1,7 +1,7 @@
 name: Actualizar situación del río
 on:
   schedule:
-    - cron: "*/30 * * * *"   # cada 30 minutos (GitHub puede demorar unos minutos)
+    - cron: "7,37 * * * *"   # cada 30 min, fuera de la hora en punto (en punto GitHub saltea muchas corridas)
   workflow_dispatch:
 permissions:
   contents: write
