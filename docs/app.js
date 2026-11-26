@@ -307,8 +307,8 @@ function dibujarRuta() {
   }
   if (pts.length < 2) return;
   const info = `<h3>Ruta Canal Costanero</h3><p>Mínimo 1,20 m + altura del río.</p>`;
-  L.polyline(pts.map(p => [p.lat, p.lon]), { pane: 'ruta', color: '#ff7a00', weight: 4, opacity: 0.95 }).bindPopup(info).addTo(capaRuta);
-  for (const p of pts) L.circleMarker([p.lat, p.lon], { pane: 'ruta', radius: 5, color: '#ff7a00', fillColor: '#fff', fillOpacity: 1, weight: 2 })
+  L.polyline(pts.map(p => [p.lat, p.lon]), { pane: 'ruta', color: '#ff7a00', weight: 3, opacity: 0.95, dashArray: '8 6' }).bindPopup(info).addTo(capaRuta);
+  for (const p of pts) L.circleMarker([p.lat, p.lon], { pane: 'ruta', radius: 4, color: '#ff7a00', fillColor: '#fff', fillOpacity: 1, weight: 2 })
     .bindPopup(() => `<h3>${esc(p.n)}</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(p.lat))}<br>${esc(fmtLon(p.lon))}</p>${posGps ? `<p><strong>Desde tu posición:</strong> ${fmtRumbo(rumbo(posGps, L.latLng(p.lat, p.lon)))} · ${fmtDist(distM(posGps, L.latLng(p.lat, p.lon)))}</p>` : ''}`).addTo(capaRuta);
 }
 
@@ -325,14 +325,14 @@ function dibujarPasoMitre() {
     const nota = '<p>Cruzar rápido y en perpendicular.</p>';
     if (a && b) {
       const pts = [P.principal.km252, [b.lat, b.lon], [a.lat, a.lon]];
-      L.polyline(pts, { pane: 'ruta', color: '#ff7a00', weight: 4, opacity: 0.95, dashArray: '10 6' })
+      L.polyline(pts, { pane: 'ruta', color: '#ff7a00', weight: 3, opacity: 0.95, dashArray: '8 6' })
         .bindPopup(`<h3>Paso seguro Mitre</h3><p>Km 25,2 → UNEN B → UNEN A</p>${nota}`).addTo(capaRuta);
       L.circleMarker(P.principal.km252, { pane: 'ruta', radius: 5, color: '#ff7a00', fillColor: '#fff', fillOpacity: 1, weight: 2 })
         .bindPopup(`<h3>Cruce Km 25,2</h3><p style="font-variant-numeric:tabular-nums">${esc(fmtLat(P.principal.km252[0]))}<br>${esc(fmtLon(P.principal.km252[1]))}</p>`).addTo(capaRuta);
       etiquetaPaso([(b.lat + a.lat) / 2, (b.lon + a.lon) / 2], 'Paso seguro Mitre (Km 25,2)');
     }
     const al = P.alternativa;
-    L.polyline(al.cruce, { pane: 'ruta', color: '#ff7a00', weight: 4, opacity: 0.85, dashArray: '4 6' })
+    L.polyline(al.cruce, { pane: 'ruta', color: '#ff7a00', weight: 3, opacity: 0.95, dashArray: '8 6' })
       .bindPopup(`<h3>Cruce alternativo Km 14</h3>${nota}`).addTo(capaRuta);
     etiquetaPaso(al.cruce[1], 'Cruce alternativo Km 14');
   }).catch(() => {});
