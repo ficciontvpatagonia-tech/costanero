@@ -30,7 +30,11 @@ button{cursor:pointer}
 .b-item b{font:700 34px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums}
 .b-item small{font-size:13px;color:#9fc3d8;text-transform:uppercase;letter-spacing:.04em}
 @media (orientation:landscape),(min-width:701px){.barra{right:auto;width:50%;border-radius:0 0 12px 0}}
-.hud-det{left:max(12px,env(safe-area-inset-left));top:calc(62px + env(safe-area-inset-top));min-width:230px;padding-right:40px}
+body>.det-barco{display:none}
+.pop-barco .leaflet-popup-content-wrapper,.pop-barco .leaflet-popup-tip{background:#0b2a3c;color:#fff}
+.pop-barco .leaflet-popup-content{margin:8px 10px}
+.det-barco .hud-v{font:600 18px/1.15 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.det-barco .hud-s{font-size:12px;color:#cfe2ee}
 .hud-vel{display:flex;gap:14px;margin:2px 0 4px}
 .hud-vel span{display:flex;align-items:baseline;gap:4px}
 .hud-vel b{font:700 34px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums}

@@ -364,7 +364,7 @@ function actualizarPos(p) {
   const cog = heading != null && !isNaN(heading) && (sog ?? 0) > 0.25 ? heading : cogCalc;
   const kn = sog != null ? sog * 1.94384 : null;
   const navegando = cog != null && kn != null && kn >= 0.5;
-  if (!marcaBarco) { marcaBarco = L.marker(posGps, { icon: iconoBarco(navegando ? cog : 0), zIndexOffset: 1000, keyboard: false }).on('click', e => { L.DomEvent.stopPropagation(e); $('#hudDet').hidden = !$('#hudDet').hidden; }).addTo(mapa); precision = L.circle(posGps, { radius: accuracy, color: '#c2188f', weight: 1, fillOpacity: 0.08, interactive: false }).addTo(mapa); }
+  if (!marcaBarco) { marcaBarco = L.marker(posGps, { icon: iconoBarco(navegando ? cog : 0), zIndexOffset: 1000, keyboard: false }).bindPopup($('#hudDet'), { closeButton: false, autoPan: false, offset: [0, -12], className: 'pop-barco' }).addTo(mapa); precision = L.circle(posGps, { radius: accuracy, color: '#c2188f', weight: 1, fillOpacity: 0.08, interactive: false }).addTo(mapa); }
   else { marcaBarco.setLatLng(posGps).setIcon(iconoBarco(navegando ? cog : 0)); precision.setLatLng(posGps).setRadius(accuracy); }
   if (navegando) {
     const largo = Math.max(sog * 60 * minutosRumbo(), 150), fin = destino(posGps, cog, largo);
@@ -389,7 +389,6 @@ function iniciarGps(centrar) {
   else if (centrar) navigator.geolocation.getCurrentPosition(p => mapa.setView([p.coords.latitude, p.coords.longitude], 14), () => {}, { enableHighAccuracy: true });
 }
 $('#btnGps').onclick = () => iniciarGps(true);
-$('#cerrarDet').onclick = () => { $('#hudDet').hidden = true; };
 /* Orientación: Norte arriba (mapa fijo) / Rumbo arriba (el mapa gira para que tu rumbo apunte hacia arriba) */
 let orient = leer('orient', 'norte');
 const btnOrient = $('#btnOrient');
