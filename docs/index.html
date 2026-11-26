@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=59">
+<link rel="stylesheet" href="estilo.css?v=60">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -42,10 +42,16 @@
   <button class="btn-r" id="btnSeguir" title="Seguir el barco" aria-label="Seguir el barco" aria-pressed="false">⤴</button>
   <button class="btn-r btn-orient" id="btnPantalla" title="Mantener la pantalla encendida" aria-label="Mantener la pantalla encendida" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg><small id="pantTxt">pantalla</small></button>
   <button class="btn-r btn-orient btn-rec" id="btnRec" title="Grabar recorrido" aria-label="Grabar recorrido" aria-pressed="false"><span class="rec-punto"></span><small id="recTxt">grabar</small></button>
+  <button class="btn-r btn-orient" id="btnAis" title="Barcos AIS (VesselFinder)" aria-label="Ver barcos AIS"><span>AIS</span><small>barcos</small></button>
   <button class="btn-r" id="btnPanel" title="Situación del río" aria-label="Abrir panel">☰</button>
 </div>
 
 <div class="alertas" id="alertas" role="alert" hidden></div>
+
+<aside class="hoja-viento hoja-ais" id="hojaAis" aria-label="Barcos AIS" hidden>
+  <button class="cerrar" id="cerrarAis" aria-label="Cerrar">×</button>
+  <div class="ais-marco" id="aisMarco"></div>
+</aside>
 
 <aside class="hoja-viento" id="hojaViento" aria-label="Viento 3 días" hidden>
   <button class="cerrar" id="cerrarViento" aria-label="Cerrar">×</button>
@@ -133,6 +139,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=59"></script>
+<script src="app.js?v=60"></script>
 </body>
 </html>
