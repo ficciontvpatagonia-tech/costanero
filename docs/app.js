@@ -432,7 +432,10 @@ function dibujarDestino() {
   if (posGps) {
     const d = distM(posGps, p);
     txt += ` · ${fmtRumbo(rumbo(posGps, p))} · ${fmtDist(d)}`;
-    if (ultimoKn && ultimoKn >= 0.5) { const min = Math.round(d / 1852 / ultimoKn * 60); txt += ` · ${min < 60 ? min + ' min' : Math.floor(min / 60) + ' h ' + (min % 60) + ' min'}`; }
+    if (ultimoKn && ultimoKn >= 0.5) {
+      const min = Math.round(d / 1852 / ultimoKn * 60), eta = new Date(Date.now() + min * 60000);
+      txt += ` · ${min < 60 ? min + ' min' : Math.floor(min / 60) + ' h ' + (min % 60) + ' min'} · ETA ${eta.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+    }
     if (!lineaDest) lineaDest = L.polyline([posGps, p], { pane: 'ruta', color: '#ffd400', weight: 3, dashArray: '8 6', interactive: false }).addTo(mapa);
     else lineaDest.setLatLngs([posGps, p]).addTo(mapa);
   } else { txt += ' · activá ◎ GPS'; lineaDest && lineaDest.remove(); lineaDest = null; }
