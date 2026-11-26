@@ -379,7 +379,7 @@ fetch('datos/puerto.json', { cache: 'no-cache' }).then(r => r.json()).then(d => 
   for (const c of d.canales) {
     if (!c.soloRotulo) L.polyline(c.c, { pane: 'ruta', color: '#7fa7c0', weight: 3, dashArray: '10 6', opacity: 0.9, interactive: false }).addTo(mapa);
     // rótulo a lo largo del canal (en uno o dos lugares si es largo)
-    const pos = c.c.length > 20 ? [0.3, 0.7] : [0.5];
+    const pos = c.f ? [c.f] : c.c.length > 20 ? [0.3, 0.7] : [0.5];
     for (const f of pos) {
       const i = Math.min(Math.max(Math.floor(c.c.length * f), 1), c.c.length - 2), a = c.c[i - 1], b = c.c[i + 1];
       let ang = deg(Math.atan2(-(merc(b[0]) - merc(a[0])), rad(b[1] - a[1]))); if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
