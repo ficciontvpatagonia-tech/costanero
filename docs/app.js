@@ -21,7 +21,7 @@ const num = (v, d = 2) => v == null || isNaN(v) ? '—' : Number(v).toFixed(d).r
 /* ---------- Mapa ---------- */
 const mapa = L.map('mapa', { zoomControl: false, preferCanvas: true, minZoom: 11, maxZoom: 17,
   rotate: true, bearing: 0, touchRotate: false, shiftKeyRotate: false, rotateControl: false,
-  maxBounds: [[-34.72, -58.66], [-34.08, -58.06]], maxBoundsViscosity: 0.8, attributionControl: true }).setView([-34.47, -58.47], 13);
+  maxBounds: [[-34.72, -58.66], [-34.08, -57.88]], maxBoundsViscosity: 0.8, attributionControl: true }).setView([-34.47, -58.47], 13);
 L.control.zoom({ position: 'bottomright' }).addTo(mapa);
 // Con mapa girable: capas de dibujo dentro del panel que gira; etiquetas en el que no gira (texto siempre derecho)
 const panelGira = mapa.getPane('rotatePane'), panelFijo = mapa.getPane('norotatePane');
@@ -373,6 +373,21 @@ function dibujarPasillo() {
     L.polyline([p5, p4, p3], { pane: 'ruta', color: '#d7262e', weight: 2, dashArray: '6 5', interactive: false }),
   ]).addTo(mapa);
 }
+
+/* ---------- Puerto de Buenos Aires: Canal Norte, Canal Sur, Canal de Acceso, zonas restringidas y de vertido (OpenStreetMap) ---------- */
+fetch('datos/puerto.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
+  for (const c of d.canales) {
+    L.polyline(c.c, { pane: 'ruta', color: '#7fa7c0', weight: 3, dashArray: '10 6', opacity: 0.9, interactive: false }).addTo(mapa);
+    const m = c.c[Math.floor(c.c.length / 2)];
+    L.marker(m, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-rio" style="transform:translate(-50%,-140%)">${esc(c.n)}</div>`, iconSize: [0, 0] }) }).addTo(etRios);
+  }
+  for (const a of d.areas) {
+    L.polygon(a.c, { pane: 'ruta', color: '#d7262e', weight: 2, dashArray: '6 5', fillColor: '#d7262e', fillOpacity: 0.12, interactive: false }).addTo(mapa);
+    const cx = a.c.reduce((s, p) => [s[0] + p[0] / a.c.length, s[1] + p[1] / a.c.length], [0, 0]);
+    L.marker(cx, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-zona" style="transform:translate(-50%,-50%)">${esc(a.n)}</div>`, iconSize: [0, 0] }) }).addTo(mapa);
+  }
+  for (const b of d.boyas) ficha(L.marker([b.lat, b.lon], { icon: iconoBoya({ k: b.k }), title: b.n }), b.lat, b.lon, b.n, NOMBRE_TIPO[b.k]).addTo(capaBoyas);
+}).catch(() => {});
 
 /* ---------- GPS ---------- */
 let marcaBarco = null, precision = null, seguir = leer('seguir', false), watchId = null;
