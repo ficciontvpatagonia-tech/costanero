@@ -28,11 +28,16 @@ def tramos(g):  # out geom(bbox) deja null en los nodos de afuera: partes contin
     return partes
 
 
-lineas, cerrados = [caja.exterior], []
+lineas, cerrados, islas = [caja.exterior], [], []
 for e in el:
     t = e.get("tags", {})
     if t.get("natural") != "water" or t.get("water") in NO: continue
-    geoms = [e["geometry"]] if e["type"] == "way" else [m["geometry"] for m in e.get("members", []) if m.get("geometry")]
+    geoms = [e["geometry"]] if e["type"] == "way" else [m["geometry"] for m in e.get("members", []) if m.get("geometry") and m.get("role") != "inner"]
+    lineas += [l for m in (e.get("members", []) if e["type"] == "relation" else []) if m.get("role") == "inner" and m.get("geometry") for l in tramos(m["geometry"])]
+    for m in (e.get("members", []) if e["type"] == "relation" else []):  # islas del río (anillos interiores completos)
+        g = m.get("geometry")
+        if m.get("role") == "inner" and g and None not in g and len(g) > 3:
+            islas.append(Polygon([(q["lon"], q["lat"]) for q in g]).buffer(0))
     for g in geoms:
         lineas += tramos(g)
         if g and None not in g and len(g) > 3 and (g[0]["lon"], g[0]["lat"]) == (g[-1]["lon"], g[-1]["lat"]):
@@ -40,12 +45,15 @@ for e in el:
             if p.area < 3e-5: cerrados.append(p)   # marinas y dársenas (no los ríos enteros)
 caras = [c for c in polygonize(unary_union(lineas)) if c.representative_point().within(caja)]
 carta = json.load(open(R / "docs/datos/carta.geojson"))
-tierra_shn = unary_union([shape(f["geometry"]) for f in carta["features"] if f["properties"]["z"] == "tierra" and not f["properties"].get("fuente")]).buffer(0)
+# la tierra SHN para clasificar sale SIEMPRE del respaldo previo (si no, una segunda corrida no encuentra tierra y la borra)
+ORIG = R / "datos/carta_antes_sf.geojson"
+tierra_shn = unary_union([shape(f["geometry"]) for f in json.load(open(ORIG))["features"] if f["properties"]["z"] == "tierra" and not f["properties"].get("fuente")]).buffer(0)
 agua_cerrada = unary_union(cerrados).buffer(0) if cerrados else Polygon()
 tierra = []
 for c in caras:
     if c.area < 1e-9: continue
     if agua_cerrada.contains(c.representative_point()): continue
+    if any(i.contains(c.representative_point()) for i in islas): tierra.append(c); continue  # isla en OSM: tierra aunque la carta 2016 no la tenga
     if c.intersection(tierra_shn).area / c.area > 0.5: tierra.append(c)
 nueva = unary_union(tierra).difference(agua_cerrada).intersection(caja).simplify(0.00001).buffer(0)
 feats = []
@@ -61,4 +69,4 @@ r6 = lambda geom: json.loads(json.dumps(mapping(geom)), parse_float=lambda x: ro
 feats.append({"type": "Feature", "properties": {"z": "tierra", "fuente": "OSM San Fernando"}, "geometry": r6(nueva)})
 carta["features"] = feats
 (R / "docs/datos/carta.geojson").write_text(json.dumps(carta, separators=(",", ":")), encoding="utf-8")
-print("caras", len(caras), "tierra", len(tierra), "espejos cerrados", len(cerrados), "km² tierra", round(nueva.area * 111 * 92, 2))
+print("caras", len(caras), "tierra", len(tierra), "islas OSM", len(islas), "espejos cerrados", len(cerrados), "km² tierra", round(nueva.area * 111 * 92, 2))
