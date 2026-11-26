@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=72">
+<link rel="stylesheet" href="estilo.css?v=73">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -34,12 +34,12 @@
   <label class="hud-rumbo">Línea de rumbo
     <select id="minRumbo" aria-label="Largo de la línea de rumbo"><option value="5">5 min</option><option value="10">10 min</option><option value="30">30 min</option></select>
   </label>
+  <button class="quitar-dest" id="quitarDest" hidden>✕ Quitar destino</button>
 </div>
 
 <div class="botones">
-  <button class="btn-r" id="btnGps" title="Mi posición (GPS)" aria-label="Mi posición">◎</button>
+  <button class="btn-r" id="btnGps" title="Mi posición · seguir el barco" aria-label="Mi posición y seguir el barco" aria-pressed="false">◎</button>
   <button class="btn-r btn-orient" id="btnOrient" title="Norte arriba / Rumbo arriba" aria-label="Cambiar orientación del mapa"><span id="orientIco">N</span><small id="orientTxt">norte</small></button>
-  <button class="btn-r" id="btnSeguir" title="Seguir el barco" aria-label="Seguir el barco" aria-pressed="false">⤴</button>
   <button class="btn-r btn-orient" id="btnPantalla" title="Mantener la pantalla encendida" aria-label="Mantener la pantalla encendida" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg><small id="pantTxt">pantalla</small></button>
   <button class="btn-r btn-orient btn-rec" id="btnRec" title="Grabar recorrido" aria-label="Grabar recorrido" aria-pressed="false"><span class="rec-punto"></span><small id="recTxt">grabar</small></button>
   <button class="btn-r" id="btnPanel" title="Situación del río" aria-label="Abrir panel">☰</button>
@@ -52,6 +52,29 @@
   <select id="puntoViento" aria-label="Punto"></select>
   <div class="scroll" id="tablaViento"></div>
 </aside>
+
+<aside class="hoja-marea" id="hojaMarea" aria-label="Mareas" hidden>
+  <button class="cerrar" id="cerrarMarea" aria-label="Cerrar">×</button>
+    <div class="semaforo" id="semaforo">
+      <div class="sem-cab">
+        <h2>Canal Costanero</h2>
+        <label class="calado">Calado
+          <input id="calado" type="number" inputmode="decimal" min="0.3" max="4" step="0.05" value="1.50"> m
+        </label>
+      </div>
+      <div class="sem-luz" id="semLuz">—</div>
+      <div class="sem-det" id="semDet"></div>
+      <div class="curva" id="curvaSF" aria-label="Altura en San Fernando"></div>
+    </div>
+    <div id="estaciones" class="estaciones"></div>
+    <div id="pronostico" class="bloque"></div>
+</aside>
+
+<div class="marea" id="barraMarea" role="button" tabindex="0" title="Marea · tocá para ver las mareas">
+  <div class="m-num" id="mNum">—</div>
+  <div class="m-tubo"><div class="m-nivel" id="mNivel"></div><div class="m-lim" id="mLim"></div></div>
+  <div class="m-sub" id="mSub"></div>
+</div>
 
 <div class="rosa" id="rosaViento" aria-live="polite" role="button" tabindex="0" title="Viento ahora · tocá para ver el pronóstico de 3 días">
   <svg viewBox="0 0 100 100" aria-hidden="true">
@@ -66,7 +89,7 @@
 
 
 <!-- Panel lateral / hoja inferior -->
-<aside class="panel" id="panel" aria-label="Marea">
+<aside class="panel" id="panel" aria-label="Avisos e información">
   <header class="p-cab">
     <div>
       <h1>MS_Costanero</h1>
@@ -80,30 +103,14 @@
     <p class="nota" id="txtInstalar" hidden>Para instalarla: menú ⋮ de Chrome → «Instalar app» (o «Agregar a pantalla de inicio»).</p>
   </div>
   <nav class="tabs" role="tablist">
-    <button role="tab" class="tab on" data-t="sit" aria-selected="true">Marea</button>
-    <button role="tab" class="tab" data-t="avisos" aria-selected="false">Avisos</button>
+    <button role="tab" class="tab on" data-t="avisos" aria-selected="true">Avisos</button>
     <button role="tab" class="tab" data-t="alertas" aria-selected="false">Alertas <span class="cuenta" id="cuentaAlertas" hidden></span></button>
     <button role="tab" class="tab" data-t="recorridos" aria-selected="false">Recorridos</button>
     <button role="tab" class="tab" data-t="info" aria-selected="false">Info</button>
   </nav>
 
-  <section class="vista on" id="v-sit">
-    <div class="semaforo" id="semaforo">
-      <div class="sem-cab">
-        <h2>Canal Costanero</h2>
-        <label class="calado">Calado
-          <input id="calado" type="number" inputmode="decimal" min="0.3" max="4" step="0.05" value="1.50"> m
-        </label>
-      </div>
-      <div class="sem-luz" id="semLuz">—</div>
-      <div class="sem-det" id="semDet"></div>
-      <div class="curva" id="curvaSF" aria-label="Altura en San Fernando"></div>
-    </div>
-    <div id="estaciones" class="estaciones"></div>
-    <div id="pronostico" class="bloque"></div>
-  </section>
 
-  <section class="vista" id="v-avisos">
+  <section class="vista on" id="v-avisos">
     <div id="avisos"></div>
   </section>
 
@@ -138,6 +145,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=72"></script>
+<script src="app.js?v=73"></script>
 </body>
 </html>
