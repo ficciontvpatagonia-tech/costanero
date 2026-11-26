@@ -257,3 +257,5 @@ input.renombrar{width:100%;font:600 17px/1.2 "Barlow Condensed",sans-serif;paddi
 .aviso-inicio p{margin:6px 0}
 .entendido{display:block;width:100%;margin-top:10px;min-height:46px;border:0;border-radius:10px;background:#ffd400;color:#000;font:700 19px/1 "Barlow Condensed",sans-serif}
 .ley-sond{display:inline-block;width:28px;flex:none;text-align:center;font:italic 600 15px Barlow,sans-serif}.ley-sond sub{font-size:10px}
+.capas-op.colores{align-items:center}.capas-op.colores span{flex:0 0 auto;font-weight:600;color:var(--sub);margin-right:2px}.capas-op.colores button{flex:1 1 90px}
+.capas-op.colores+.capas-op{border-top:0;padding-top:0;margin-top:8px}.capas-op.colores span{min-width:68px}

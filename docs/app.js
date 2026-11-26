@@ -37,11 +37,18 @@ nuevoPanel('ruta', 390);
 const lienzoCarta = L.canvas({ pane: 'carta', padding: 0.5 }), lienzoGrilla = L.svg({ pane: 'grilla', padding: 0.5 });
 nuevoPanel('etiquetas', 420, true);
 
-// Colores de carta (estándar de plotter). Día y noche: se eligen según el modo del teléfono.
-const PALETA = {
-  dia:   { agua: '#7cc6ec', profunda: '#eef7fc', seca: '#a8d08d', tierra: '#f2df6b', borde: '#00000040', grilla: '#c2188f' },
-  noche: { agua: '#1d4f6e', profunda: '#2f6b8d', seca: '#3f5a33', tierra: '#4d4726', borde: '#ffffff30', grilla: '#e05bb7' },
+// Colores de carta. Dos juegos para elegir en Info → Colores (se puede volver cuando se quiera); día y noche según el teléfono.
+//   clásica: carta de papel (tierra amarilla) · plotter: tonos de plotter (tierra naranja, se seca verde agua, somero turquesa)
+const PALETAS = {
+  clasica: {
+    dia:   { agua: '#7cc6ec', profunda: '#eef7fc', seca: '#a8d08d', tierra: '#f2df6b', borde: '#00000040', grilla: '#c2188f', grad: [[86, 172, 226], [246, 251, 255]] },
+    noche: { agua: '#1d4f6e', profunda: '#2f6b8d', seca: '#3f5a33', tierra: '#4d4726', borde: '#ffffff30', grilla: '#e05bb7', grad: [[18, 58, 92], [52, 110, 140]] } },
+  plotter: {
+    dia:   { agua: '#7dd3e2', profunda: '#c9eef5', seca: '#56a891', tierra: '#f3bf6d', borde: '#00000040', grilla: '#c2188f', grad: [[79, 194, 215], [205, 240, 247]] },
+    noche: { agua: '#1c5866', profunda: '#2d7584', seca: '#2c5a4d', tierra: '#7a5a2c', borde: '#ffffff30', grilla: '#e05bb7', grad: [[22, 86, 102], [58, 136, 152]] } },
 };
+let paleta = PALETAS[leer('paleta', 'clasica')] ? leer('paleta', 'clasica') : 'clasica';
+const PALETA = { get dia() { return PALETAS[paleta].dia; }, get noche() { return PALETAS[paleta].noche; } };
 const oscuro = matchMedia('(prefers-color-scheme: dark)');
 const modo = () => { const t = document.documentElement.dataset.theme; return t === 'dark' ? 'noche' : t === 'light' ? 'dia' : oscuro.matches ? 'noche' : 'dia'; };
 const col = k => PALETA[modo()][k];
@@ -57,7 +64,17 @@ function agregarCarta(gj) {
   capasCarta.push(L.geoJSON(gj, { pane: 'tierra', renderer: lienzoTierra, interactive: false, style: estiloZona, filter: esTierra }).addTo(mapa));
 }
 fetch('datos/carta.geojson').then(r => r.json()).then(agregarCarta).catch(() => {});
-oscuro.addEventListener('change', () => { capasCarta.forEach(c => c.setStyle(estiloZona)); if (typeof dibujarNoPasa === 'function') { dibujarNoPasa(); capaSond.redraw(); } document.getElementById('mapa').style.background = col('agua'); dibujarGrilla(); });
+// repinta todo lo que depende de los colores (cambio día/noche del teléfono o de juego de colores en Info)
+function aplicarColores() {
+  const r = document.documentElement.style;
+  if (paleta === 'clasica') ['--tierra', '--seca', '--agua', '--honda', '--grad'].forEach(v => r.removeProperty(v));
+  else { r.setProperty('--tierra', col('tierra')); r.setProperty('--seca', col('seca')); r.setProperty('--agua', col('agua')); r.setProperty('--honda', col('profunda')); }
+  const g = col('grad'); r.setProperty('--grad', `linear-gradient(90deg,rgb(${g[0]}),rgb(${g[1]}))`);
+  capasCarta.forEach(c => c.setStyle(estiloZona));
+  if (typeof dibujarNoPasa === 'function') { dibujarNoPasa(); capaSond.redraw(); }
+  document.getElementById('mapa').style.background = col('agua'); dibujarGrilla();
+}
+oscuro.addEventListener('change', aplicarColores);
 document.getElementById('mapa').style.background = col('agua');
 
 /* ---------- Grilla de latitud y longitud ---------- */
@@ -203,7 +220,7 @@ mapa.on('zoomend', etiquetasSegunZoom);
 
 /* ---------- Capa dinámica "no pasás": profundidad de carta + altura actual del río < calado + margen ---------- */
 const MARGEN = 0.30; // m bajo la quilla
-const GRAD = { dia: [[86, 172, 226], [246, 251, 255]], noche: [[18, 58, 92], [52, 110, 140]] }; // somero → hondo
+const GRAD = { get dia() { return PALETA.dia.grad; }, get noche() { return PALETA.noche.grad; } }; // somero → hondo (según el juego de colores)
 const profs = []; // grillas de profundidad (una por zona/carta), cada una con su referencia de altura
 const LAT_SF = -34.44, LAT_BA = -34.58;
 // Colonia (SOHMA): profundidades al plano de reducción de Colonia. Sin altura en vivo todavía → 0 (conservador: como si el río estuviera en ese plano)
@@ -272,6 +289,31 @@ function enCorredor(lon, lat) {
    los mosaicos que ya están, sin parpadeo. (Antes: una imagen de 8,5 millones de píxeles por grilla, ~1,3 s por dibujo.) */
 const TILE = 256, PER = 13, LIN = 3.5, FUNDIDO = 0.012; // FUNDIDO: grados (~1,2 km) de transición entre cartas // rayado a 45°: período ~9 px y línea ~2,5 px medidos en perpendicular
 let bufTile = null;
+/* Dársenas, diques y marinas (OSM): adentro no se pinta nada (la carta las marca como "se seca"; están dragadas) */
+let darsenas = []; // { p: [[lat, lon]...], w, s, e, n }
+fetch('datos/darsenas.json').then(r => r.json()).then(d => {
+  darsenas = d.poligonos.map(p => ({ p, w: Math.min(...p.map(x => x[1])), e: Math.max(...p.map(x => x[1])), s: Math.min(...p.map(x => x[0])), n: Math.max(...p.map(x => x[0])) }));
+  claveProf = ''; dibujarNoPasa(); capaSond.redraw();
+}).catch(() => {});
+const mercY = la => (1 - Math.log(Math.tan(Math.PI / 4 + rad(la) / 2)) / Math.PI) / 2;
+function enDarsena(la, lo) {
+  for (const d of darsenas) {
+    if (lo < d.w || lo > d.e || la < d.s || la > d.n) continue;
+    let dentro = false; const p = d.p;
+    for (let i = 0, j = p.length - 1; i < p.length; j = i++)
+      if ((p[i][0] > la) !== (p[j][0] > la) && lo < (p[j][1] - p[i][1]) * (la - p[i][0]) / (p[j][0] - p[i][0]) + p[i][1]) dentro = !dentro;
+    if (dentro) return true;
+  }
+  return false;
+}
+let lienzoMasc = null;
+function mascaraDarsenas(w, s, e, n, N, x0, y0) { // máscara del mosaico (null si no toca ninguna dársena)
+  const ds = darsenas.filter(d => d.e > w && d.w < e && d.n > s && d.s < n); if (!ds.length) return null;
+  if (!lienzoMasc) { lienzoMasc = document.createElement('canvas'); lienzoMasc.width = lienzoMasc.height = TILE; }
+  const g = lienzoMasc.getContext('2d', { willReadFrequently: true }); g.clearRect(0, 0, TILE, TILE); g.fillStyle = '#000';
+  for (const d of ds) { g.beginPath(); d.p.forEach(([la, lo], i) => { const x = (lo + 180) / 360 * N - x0, y = mercY(la) * N - y0; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); g.fill(); }
+  return g.getImageData(0, 0, TILE, TILE).data;
+}
 function pintarTile(cv, c) {
   const g = cv.getContext('2d'), N = TILE * 2 ** c.z, x0 = c.x * TILE, y0 = c.y * TILE;
   const lonDe = px => px / N * 360 - 180, latDe = py => deg(Math.atan(Math.sinh(Math.PI * (1 - 2 * py / N))));
@@ -289,6 +331,7 @@ function pintarTile(cv, c) {
     return { p, fx, fy, h, bx, by };
   });
   const tocaCorredor = corredor && n > -34.475 && s < -34.445 && e > -58.505 && w < -58.465;
+  const masc = mascaraDarsenas(w, s, e, n, N, x0, y0);
   for (let j = 0; j < TILE; j++) {
     for (let i = 0; i < TILE; i++) {
       let z = null, hh = 0, wTop = 1, solo = true;
@@ -308,7 +351,7 @@ function pintarTile(cv, c) {
           if (wTop >= 1 || !p.fundir) break;
         } else { z = wTop * z + (1 - wTop) * zi; hh = wTop * hh + (1 - wTop) * h[j]; solo = false; break; }
       }
-      if (z === null) continue;
+      if (z === null || (masc && masc[(j * TILE + i) * 4 + 3] > 127)) continue;
       if (tocaCorredor && z < DETERMINANTE) {
         const lat = latDe(y0 + j + 0.5), lon = lonDe(x0 + i + 0.5);
         if (lat > -34.475 && lat < -34.445 && lon > -58.505 && lon < -58.465 && enCorredor(lon, lat)) z = DETERMINANTE;
@@ -352,6 +395,7 @@ function pintarSondajes(g, c, N, x0, y0) {
     const px = (lo + 180) / 360 * N - x0; if (px < -M || px > TILE + M) continue;
     const py = (1 - Math.log(Math.tan(Math.PI / 4 + rad(la) / 2)) / Math.PI) / 2 * N - y0; if (py < -M || py > TILE + M) continue;
     if (corredor && la > -34.475 && la < -34.445 && lo > -58.505 && lo < -58.465 && enCorredor(lo, la)) continue;
+    if (darsenas.length && enDarsena(la, lo)) continue;
     const ent = String(Math.floor(z + 1e-6)), dec = String(Math.round((z - Math.floor(z + 1e-6)) * 10) % 10);
     g.font = `italic 600 ${T1}px Barlow, sans-serif`;
     g.textAlign = 'right'; g.strokeText(ent, px + 1, py + T1 * 0.35); g.fillText(ent, px + 1, py + T1 * 0.35);
@@ -376,7 +420,7 @@ nuevoPanel('gradiente', 240);
 const capaProf = new CapaProf({ pane: 'gradiente', tileSize: TILE, updateWhenZooming: false, keepBuffer: 1 }).addTo(mapa);
 let claveProf = '';
 function dibujarNoPasa() { // repinta solo si cambió algo que se ve (altura, calado, día/noche, grillas, corredor)
-  const k = [calado.value, modo(), profs.length, corredor ? 1 : 0, alturaRio(LAT_SF).toFixed(2), alturaRio(LAT_BA).toFixed(2), profs.some(p => p.ref === 'colonia') ? alturaColonia().toFixed(2) : ''].join('|');
+  const k = [calado.value, modo(), paleta, profs.length, corredor ? 1 : 0, alturaRio(LAT_SF).toFixed(2), alturaRio(LAT_BA).toFixed(2), profs.some(p => p.ref === 'colonia') ? alturaColonia().toFixed(2) : ''].join('|');
   if (k !== claveProf) { claveProf = k; capaProf.repintar(); }
 }
 function cargarGrilla(url, prio = 2, fundir = false) {
@@ -1412,6 +1456,14 @@ function pintarBotonesCapas() {
 $('#btnCoords').onclick = () => { verCoords = !verCoords; guardar('verCoords', verCoords); dibujarGrilla(); pintarBotonesCapas(); };
 $('#btnSond').onclick = () => { verSond = !verSond; guardar('verSond', verSond); verSond ? capaSond.addTo(mapa) : capaSond.remove(); pintarBotonesCapas(); };
 pintarBotonesCapas();
+document.querySelectorAll('[data-paleta]').forEach(b => b.onclick = () => { paleta = b.dataset.paleta; guardar('paleta', paleta); aplicarColores(); pintarBotonesPaleta(); });
+function pintarBotonesPaleta() { document.querySelectorAll('[data-paleta]').forEach(b => b.setAttribute('aria-pressed', b.dataset.paleta === paleta)); }
+// Pantalla: Auto (como el teléfono) · Día · Noche — así se pueden usar los colores de día aunque el teléfono esté en modo oscuro
+let tema = ['auto', 'dia', 'noche'].includes(leer('tema', 'auto')) ? leer('tema', 'auto') : 'auto';
+function aplicarTema() { const d = document.documentElement.dataset; if (tema === 'auto') delete d.theme; else d.theme = tema === 'dia' ? 'light' : 'dark';
+  document.querySelectorAll('[data-tema]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tema === tema)); }
+document.querySelectorAll('[data-tema]').forEach(b => b.onclick = () => { tema = b.dataset.tema; guardar('tema', tema); aplicarTema(); aplicarColores(); });
+aplicarTema(); pintarBotonesPaleta(); aplicarColores();
 arrastrable($('#panel'), () => abrirPanel(false), () => innerWidth <= 700);
 if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__dbg = { dibujarNoPasa, profs, get sit() { return sit; } }; // solo pruebas locales
 
