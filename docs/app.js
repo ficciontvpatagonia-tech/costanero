@@ -82,7 +82,7 @@ function aplicarColores() {
   const r = document.documentElement.style, min = paleta === 'minima';
   if (typeof aplicarTema === 'function' && typeof tema !== 'undefined') aplicarTema(); // Mínima fuerza la interfaz oscura
   document.getElementById('mapa').classList.toggle('minima', min);
-  if (typeof capaProf !== 'undefined') { if (min) capaProf.remove(); else if (!mapa.hasLayer(capaProf)) capaProf.addTo(mapa); }
+  if (typeof capaProf !== 'undefined' && !mapa.hasLayer(capaProf)) capaProf.addTo(mapa); // en Mínima dibuja solo el rayado gris
   if (typeof capaSond !== 'undefined') { if (min) capaSond.remove(); else if (verSond && !mapa.hasLayer(capaSond)) capaSond.addTo(mapa); }
   rehacerRelleno();
   if (paleta === 'clasica') ['--tierra', '--seca', '--agua', '--honda', '--grad'].forEach(v => r.removeProperty(v));
@@ -341,7 +341,7 @@ function pintarTile(cv, c) {
   if (!gr.length) return;
   if (!bufTile) bufTile = g.createImageData(TILE, TILE);
   const d = bufTile.data; d.fill(0);
-  const umbral = (parseFloat(calado.value) || 0) + MARGEN, A = GRAD[modo()];
+  const umbral = (parseFloat(calado.value) || 0) + MARGEN, A = GRAD[modo()], min = paleta === 'minima'; // Mínima: sin degradé, rayado gris tenue
   const pre = gr.map(p => { // por grilla: columna → x en la grilla, fila → y en la grilla y altura del río
     const fx = new Float32Array(TILE), fy = new Float32Array(TILE), h = new Float32Array(TILE), bx = new Float32Array(TILE), by = new Float32Array(TILE);
     for (let i = 0; i < TILE; i++) { const lon = lonDe(x0 + i + 0.5); fx[i] = (lon - p.w) / (p.e - p.w) * p.cols - 0.5; bx[i] = Math.min(lon - p.w, p.e - lon); }
@@ -376,12 +376,15 @@ function pintarTile(cv, c) {
       }
       const o = (j * TILE + i) * 4, dA = z + hh;
       let r = 0, gg = 0, bb = 0, al = 0;
-      if (z > -0.05) { // degradé tipo plotter: azul donde hay poca agua → blanco donde sobra
+      if (z > -0.05 && !min) { // degradé tipo plotter: azul donde hay poca agua → blanco donde sobra
         const t = Math.min(Math.max((dA - umbral) / 3, 0), 1);
         r = A[0][0] + (A[1][0] - A[0][0]) * t; gg = A[0][1] + (A[1][1] - A[0][1]) * t; bb = A[0][2] + (A[1][2] - A[0][2]) * t;
         al = solo && wTop < 1 ? 255 * wTop : 255; // borde de lo que cubren las cartas: el degradé se desvanece (sin línea recta)
       }
-      if (dA < umbral) { // rayado negro, continuo entre mosaicos (se mide en píxeles globales)
+      if (dA < umbral && min) { // Mínima: solo las líneas del rayado, en gris tenue sobre el negro
+        const m = (((x0 + i) - (y0 + j)) % PER + PER) % PER;
+        if (m < LIN + 0.5) { r = 128; gg = 142; bb = 152; al = m < LIN - 0.5 ? 120 : 60; }
+      } else if (dA < umbral) { // rayado negro, continuo entre mosaicos (se mide en píxeles globales)
         const m = (((x0 + i) - (y0 + j)) % PER + PER) % PER, k = m < LIN - 0.5 ? 0.85 : m < LIN + 0.5 ? 0.55 : 0.28;
         if (al === 255) { r *= 1 - k; gg *= 1 - k; bb *= 1 - k; } else if (al) { const a1 = al / 255, a = a1 + k * (1 - a1); r = r * a1 * (1 - k) / a; gg = gg * a1 * (1 - k) / a; bb = bb * a1 * (1 - k) / a; al = 255 * a; } else al = 255 * k;
       }
