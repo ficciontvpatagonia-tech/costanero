@@ -49,10 +49,13 @@ carta = json.load(open(R / "docs/datos/carta.geojson"))
 ORIG = R / "datos/carta_antes_sf.geojson"
 tierra_shn = unary_union([shape(f["geometry"]) for f in json.load(open(ORIG))["features"] if f["properties"]["z"] == "tierra" and not f["properties"].get("fuente")]).buffer(0)
 agua_cerrada = unary_union(cerrados).buffer(0) if cerrados else Polygon()
+BOCA = box(-58.522, -34.4475, -58.505, -34.440)  # boca del Luján frente a Las Heras: 2 bancos de arena (OSM los tiene como islas)
+bancos = unary_union([i for i in islas if i.intersects(BOCA)])
 tierra = []
 for c in caras:
     if c.area < 1e-9: continue
     if agua_cerrada.contains(c.representative_point()): continue
+    if not bancos.is_empty and bancos.contains(c.representative_point()): continue  # banco de arena: va como "se seca", no tierra
     if any(i.contains(c.representative_point()) for i in islas): tierra.append(c); continue  # isla en OSM: tierra aunque la carta 2016 no la tenga
     if c.intersection(tierra_shn).area / c.area > 0.5: tierra.append(c)
 nueva = unary_union(tierra).difference(agua_cerrada).intersection(caja).simplify(0.00001).buffer(0)
@@ -66,7 +69,14 @@ for f in carta["features"]:
     if f["properties"].get("fuente") == "OSM San Fernando": continue  # se rehace
     feats.append(f)
 r6 = lambda geom: json.loads(json.dumps(mapping(geom)), parse_float=lambda x: round(float(x), 6))
+feats = [f for f in feats if f["properties"].get("fuente") != "margen islas Luján"]  # se rehace
 feats.append({"type": "Feature", "properties": {"z": "tierra", "fuente": "OSM San Fernando"}, "geometry": r6(nueva)})
+# los 2 bancos de arena de la boca del Luján (Marto 26/11: "son bancos de arena"): todo "se seca", con el borde
+# de ~15 m (separados, como en Navionics) y C-MAP alrededor del contorno de OSM
+if not bancos.is_empty:
+    seca_b = bancos.buffer(0.00013).difference(agua_cerrada).buffer(0)
+    feats.append({"type": "Feature", "properties": {"z": "seca", "fuente": "margen islas Luján"}, "geometry": r6(seca_b.simplify(0.00001))})
+    print("bancos de arena (se secan) en la boca del Luján:", len(getattr(bancos, "geoms", [bancos])))
 carta["features"] = feats
 (R / "docs/datos/carta.geojson").write_text(json.dumps(carta, separators=(",", ":")), encoding="utf-8")
 print("caras", len(caras), "tierra", len(tierra), "islas OSM", len(islas), "espejos cerrados", len(cerrados), "km² tierra", round(nueva.area * 111 * 92, 2))
