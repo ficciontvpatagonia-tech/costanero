@@ -413,7 +413,13 @@ $('#btnGps').addEventListener('click', () => guardar('gpsUsado', true));
 
 /* ---------- Ir a: tocar una referencia dibuja la línea desde el barco con rumbo, distancia y tiempo ---------- */
 let objetivo = null, lineaDest = null, marcaDest = null, ultimoKn = null;
-function irA(lat, lon, nombre) { objetivo = { p: L.latLng(lat, lon), n: nombre }; dibujarDestino(); }
+function irA(lat, lon, nombre) { objetivo = { p: L.latLng(lat, lon), n: nombre, o: posGps ? L.latLng(posGps.lat, posGps.lng) : null }; lineaDest && lineaDest.remove(); lineaDest = null; dibujarDestino(); }
+// Error de derrota (XTE): distancia en metros a la derrota origen→destino; >0 = estás a estribor de la derrota
+function xte(o, d, p) {
+  const k = Math.cos(rad((o.lat + d.lat) / 2)), X = q => rad(q.lng - o.lng) * k * R_T, Y = q => rad(q.lat - o.lat) * R_T;
+  const dx = X(d), dy = Y(d), px = X(p), py = Y(p), L2 = Math.hypot(dx, dy) || 1;
+  return (px * dy - py * dx) / L2; // producto cruzado: positivo si p está a la derecha del rumbo o→d
+}
 // Ficha de una referencia: datos resumidos + botón "Ir hasta aquí" (recién ahí se dibuja la línea)
 function ficha(marker, lat, lon, nombre, detalle) {
   marker.bindPopup(() => {
@@ -424,7 +430,7 @@ function ficha(marker, lat, lon, nombre, detalle) {
   }, { closeButton: false });
   return marker;
 }
-function borrarDestino() { objetivo = null; lineaDest && lineaDest.remove(); marcaDest && marcaDest.remove(); lineaDest = marcaDest = null; }
+function borrarDestino() { objetivo = null; lineaDest && lineaDest.remove(); marcaDest && marcaDest.remove(); lineaDest = marcaDest = null; $('#bXte').hidden = true; }
 function dibujarDestino() {
   if (!objetivo) return;
   const p = objetivo.p;
@@ -436,8 +442,12 @@ function dibujarDestino() {
       const min = Math.round(d / 1852 / ultimoKn * 60), eta = new Date(Date.now() + min * 60000);
       txt += ` · ${min < 60 ? min + ' min' : Math.floor(min / 60) + ' h ' + (min % 60) + ' min'} · ETA ${eta.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
     }
-    if (!lineaDest) lineaDest = L.polyline([posGps, p], { pane: 'ruta', color: '#ffd400', weight: 3, dashArray: '8 6', interactive: false }).addTo(mapa);
-    else lineaDest.setLatLngs([posGps, p]).addTo(mapa);
+    if (!objetivo.o) objetivo.o = L.latLng(posGps.lat, posGps.lng); // derrota fija desde donde elegiste ir
+    const e = xte(objetivo.o, p, posGps), em = Math.abs(e);
+    $('#bXte').hidden = false;
+    $('#xte').textContent = em < 10 ? '0' : (e > 0 ? '◀ ' : '') + (em < 1000 ? Math.round(em) + ' m' : (em / 1852).toFixed(2).replace('.', ',') + ' MN') + (e < 0 ? ' ▶' : '');
+    if (!lineaDest) lineaDest = L.polyline([objetivo.o, p], { pane: 'ruta', color: '#ffd400', weight: 3, dashArray: '8 6', interactive: false }).addTo(mapa);
+    else lineaDest.setLatLngs([objetivo.o, p]).addTo(mapa);
   } else { txt += ' · activá ◎ GPS'; lineaDest && lineaDest.remove(); lineaDest = null; }
   const html = `<div class="et-boya et-destacada et-destino" style="transform:translate(14px,8px)">${esc(txt)}</div>`;
   if (!marcaDest) marcaDest = L.marker(p, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html, iconSize: [0, 0] }) }).addTo(mapa);
