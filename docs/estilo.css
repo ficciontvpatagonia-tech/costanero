@@ -219,3 +219,25 @@ body.con-panel .marea{right:calc(min(440px,100%) + 12px)}
 .rosa::before{content:"viento"}
 .marea::before{content:"marea";top:-24px}
 .marea{position:fixed}
+
+/* zona de toque más grande que el dibujo (dedo en el agua) */
+.toque::before{content:"";position:absolute;inset:-10px}
+.leaflet-marker-icon .et-destacada{pointer-events:auto;cursor:pointer}
+
+.marcar-wp{display:block;width:100%;margin-top:8px;min-height:36px;border:1px solid #ffd400;border-radius:8px;background:#ffd400;color:#000;font:700 15px/1 "Barlow Condensed",sans-serif}
+.et-wp{position:absolute;left:22px;top:2px;color:light-dark(#0b2a3c,#fff);font-weight:700}
+h2.sec{margin-top:18px}
+.reco button.on{background:#00d5ff;color:#000;border-color:#00a9cc}
+input.renombrar{width:100%;font:600 17px/1.2 "Barlow Condensed",sans-serif;padding:6px 8px;border-radius:8px;border:2px solid var(--mag);background:var(--bg);margin:0 0 4px}
+.dialogo{position:fixed;z-index:800;left:50%;top:50%;transform:translate(-50%,-50%);width:min(360px,calc(100% - 32px));background:var(--bg);color:var(--ink);border-radius:16px;box-shadow:0 12px 40px #000a;padding:18px}
+.dialogo[hidden]{display:none}
+.dialogo h2{font-size:22px}
+.dialogo input{width:100%;font-size:17px;padding:10px;border-radius:10px;border:1px solid var(--linea);background:var(--bg2);margin:8px 0 12px;min-height:44px}
+.dialogo .btns{display:flex;gap:10px}
+.dialogo button{flex:1;min-height:48px;border-radius:10px;border:1px solid var(--linea);background:var(--bg2);font:700 18px/1 "Barlow Condensed",sans-serif}
+.dialogo button.ok{background:#14953d;color:#fff;border-color:#14953d}
+.dialogo button.peligro{color:#d7262e}
+.agarre-panel{display:none;z-index:2;background:#ffffff55}
+@media (max-width:700px){.agarre-panel{display:block}}
+@media (max-width:700px){.rosa{left:max(12px,env(safe-area-inset-left))}}
+.et-puerto{font-size:16px;letter-spacing:.02em}

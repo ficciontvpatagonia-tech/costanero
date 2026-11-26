@@ -22,6 +22,7 @@ const num = (v, d = 2) => v == null || isNaN(v) ? '—' : Number(v).toFixed(d).r
 const mapa = L.map('mapa', { zoomControl: false, preferCanvas: true, minZoom: 11, maxZoom: 17,
   rotate: true, bearing: 0, touchRotate: false, shiftKeyRotate: false, rotateControl: false,
   maxBounds: [[-34.72, -58.66], [-34.08, -57.88]], maxBoundsViscosity: 0.8, inertia: false, attributionControl: true }).setView([-34.47, -58.47], 13);
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__mapa = mapa; // solo para pruebas locales
 // Con mapa girable: capas de dibujo dentro del panel que gira; etiquetas en el que no gira (texto siempre derecho)
 const panelGira = mapa.getPane('rotatePane'), panelFijo = mapa.getPane('norotatePane');
 const nuevoPanel = (nombre, z, fijo) => { const p = mapa.createPane(nombre, (fijo ? panelFijo : panelGira) || undefined); p.style.zIndex = z; return p; };
@@ -132,7 +133,7 @@ function iconoBoya(tp) {
     cuerpo = `<path d="M7 26h10l-1.5-14h-7z" fill="${Y}" stroke="${K}"/><rect x="7.6" y="${tp.d==='S'?19:12}" width="8.8" height="${tp.d==='E'||tp.d==='W'?4:7}" fill="${K}"/>`
       + `<path d="${arriba ? 'M8 9l4-6 4 6z' : 'M8 3l4 6 4-6z'}" fill="${K}"/>` + (tp.d === 'E' || tp.d === 'W' ? `<path d="${abajo ? 'M8 11l4-6' : 'M8 5l4 6'}" fill="none"/>` : '') ; }
   else cuerpo = `<path d="M7 26h10l-1.5-14h-7z" fill="${Y}" stroke="${K}"/><path d="M8.5 6l7 5M15.5 6l-7 5" stroke="${Y}" stroke-width="2.2"/>`;
-  return L.divIcon({ className: '', iconSize: [24, 30], iconAnchor: [12, 26], popupAnchor: [0, -24],
+  return L.divIcon({ className: 'toque', iconSize: [24, 30], iconAnchor: [12, 26], popupAnchor: [0, -24],
     html: `<svg width="24" height="30" viewBox="0 0 24 30" aria-hidden="true"><circle cx="12" cy="26" r="1.6" fill="#000"/>${cuerpo}</svg>` });
 }
 const NOMBRE_TIPO = { roja: 'Lateral roja', verde: 'Lateral verde', bif: 'Bifurcación', peligro: 'Peligro aislado', segura: 'Aguas seguras', card: 'Cardinal', especial: 'Especial' };
@@ -153,9 +154,9 @@ fetch('datos/boyas.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
     const tp = tipoBoya(b);
     L.marker([b.lat, b.lon], { icon: iconoBoya(tp), title: b.name, keyboard: true }).addTo(capaBoyas);
     ficha(capaBoyas.getLayers()[capaBoyas.getLayers().length - 1], b.lat, b.lon, nombreLindo(b.name.replace(/\s*\((Roja|Verde)\)/i, '')), [NOMBRE_TIPO[tp.k] + (tp.d ? ' ' + tp.d : ''), b.characteristics ? b.characteristics.replace(/\s*\(.*\)\s*$/, '') : '', b.status && b.status !== 'OK' ? b.status : ''].filter(Boolean).join(' · '));
-    const destacada = DESTACADAS.includes(b.name.toUpperCase());
-    L.marker([b.lat, b.lon], { pane: 'etiquetas', interactive: false,
-      icon: L.divIcon({ className: '', html: `<div class="${destacada ? 'et-boya et-destacada' : 'et-boya'}" style="transform:translate(12px,-22px)">${esc(destacada ? nombreLindo(b.name) : b.name.replace(/\s*\((Roja|Verde)\)/i, ''))}</div>`, iconSize: [0, 0] }) }).addTo(destacada ? etDestacadas : etBoyas);
+    const destacada = DESTACADAS.includes(b.name.toUpperCase()), mk = capaBoyas.getLayers()[capaBoyas.getLayers().length - 1];
+    L.marker([b.lat, b.lon], { pane: 'etiquetas', interactive: destacada, bubblingMouseEvents: false,
+      icon: L.divIcon({ className: '', html: `<div class="${destacada ? 'et-boya et-destacada' : 'et-boya'}" style="transform:translate(12px,-22px)">${esc(destacada ? nombreLindo(b.name) : b.name.replace(/\s*\((Roja|Verde)\)/i, ''))}</div>`, iconSize: [0, 0] }) }).on('click', () => mk.openPopup()).addTo(destacada ? etDestacadas : etBoyas);
   }
   etiquetasSegunZoom();
   dibujarRuta();
@@ -267,7 +268,7 @@ fetch('datos/veriles.json', { cache: 'no-cache' }).then(r => r.json()).then(v =>
 
 /* ---------- Clubes y amarras (OpenStreetMap) ---------- */
 const capaClubes = L.layerGroup(), etClubes = L.layerGroup();
-const iconoClub = L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -10],
+const iconoClub = L.divIcon({ className: 'toque', iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -10],
   html: '<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#0b2a3c" stroke="#fff" stroke-width="1.5"/><path d="M11 5v11M7.5 8h7M6 12.5c1 2.6 3 3.6 5 3.6s4-1 5-3.6" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="5" r="1.4" fill="#fff"/></svg>' });
 fetch('datos/clubes.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
   for (const c of d.clubes) {
@@ -284,8 +285,8 @@ mapa.on('zoomend', clubesSegunZoom);
 fetch('datos/referencias.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
   for (const r of d.referencias) {
     const p = L.latLng(r.lat, r.lon);
-    ficha(L.marker(p, { icon: iconoBoya({ k: r.tipo || 'peligro' }), title: r.n }), r.lat, r.lon, r.n, r.nota).addTo(capaBoyas);
-    L.marker(p, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-boya et-destacada" style="transform:translate(12px,-22px)">${esc(r.n)}</div>`, iconSize: [0, 0] }) }).addTo(etDestacadas);
+    const mk = ficha(L.marker(p, { icon: iconoBoya({ k: r.tipo || 'peligro' }), title: r.n }), r.lat, r.lon, r.n, r.nota).addTo(capaBoyas);
+    L.marker(p, { pane: 'etiquetas', interactive: true, bubblingMouseEvents: false, icon: L.divIcon({ className: '', html: `<div class="et-boya et-destacada" style="transform:translate(12px,-22px)">${esc(r.n)}</div>`, iconSize: [0, 0] }) }).on('click', () => mk.openPopup()).addTo(etDestacadas);
   }
 }).catch(() => {});
 
@@ -391,6 +392,15 @@ fetch('datos/puerto.json', { cache: 'no-cache' }).then(r => r.json()).then(d => 
     L.marker(cx, { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="et-zona" style="transform:translate(-50%,-50%)">${esc(a.n)}</div>`, iconSize: [0, 0] }) }).addTo(mapa);
   }
   for (const b of d.boyas) ficha(L.marker([b.lat, b.lon], { icon: iconoBoya({ k: b.k }), title: b.n }), b.lat, b.lon, b.n, NOMBRE_TIPO[b.k]).addTo(capaBoyas);
+  // escolleras (OSM): trazo de piedra sobre la tierra y el agua
+  for (const e of d.escolleras || []) {
+    L.polyline(e, { pane: 'ruta', color: '#0b2a3c', weight: 6, opacity: 0.9, lineCap: 'round', interactive: false }).addTo(mapa);
+    L.polyline(e, { pane: 'ruta', color: '#9aa3a8', weight: 3, opacity: 1, lineCap: 'round', interactive: false }).addTo(mapa);
+  }
+  for (const r of d.rotulosPuerto || []) {
+    const grande = r.z <= 12;
+    L.marker([r.lat, r.lon], { pane: 'etiquetas', interactive: false, icon: L.divIcon({ className: '', html: `<div class="${grande ? 'et-lugar et-puerto' : 'et-canal'}" style="transform:translate(-50%,-50%)">${esc(r.n)}</div>`, iconSize: [0, 0] }) }).addTo(grande ? etLugares : etRios);
+  }
 }).catch(() => {});
 
 /* ---------- GPS ---------- */
@@ -472,13 +482,18 @@ if (leer('gpsUsado', false)) iniciarGps(false);
 
 /* ---------- Ir a: tocar una referencia dibuja la línea desde el barco con rumbo, distancia y tiempo ---------- */
 let objetivo = null, lineaDest = null, marcaDest = null, ultimoKn = null, knSuave = null;
-function irA(lat, lon, nombre) { objetivo = { p: L.latLng(lat, lon), n: nombre }; $('#quitarDest').hidden = false; dibujarDestino(); }
+function irA(lat, lon, nombre) {
+  objetivo = { p: L.latLng(lat, lon), n: nombre }; $('#quitarDest').hidden = false;
+  if (lineaDest) { lineaDest.remove(); lineaDest = null; } // línea nueva: no reciclar la del destino anterior
+  dibujarDestino(); if (lineaDest) lineaDest.bringToFront();
+}
 // Ficha de una referencia: datos resumidos + botón "Ir hasta aquí" (recién ahí se dibuja la línea)
 function ficha(marker, lat, lon, nombre, detalle) {
   marker.bindPopup(() => {
     const div = document.createElement('div');
     div.innerHTML = `<h3>${esc(nombre)}</h3>${detalle ? `<p>${esc(detalle)}</p>` : ''}<button class="btn-ir">Ir hasta aquí</button>`;
-    div.querySelector('.btn-ir').onclick = () => { irA(lat, lon, nombre); marker.closePopup(); };
+    L.DomEvent.disableClickPropagation(div);
+    div.querySelector('.btn-ir').onclick = e => { L.DomEvent.stop(e); irA(lat, lon, nombre); setTimeout(() => marker.closePopup(), 0); };
     return div;
   }, { closeButton: false });
   return marker;
@@ -864,12 +879,21 @@ function puntoTrack(p) { // llamado en cada posición GPS
 }
 function terminarGrabacion() {
   grabando = false; guardar('grabando', false);
-  if (trackActual.length > 1) {
-    const L0 = trackActual[0][2], L1 = trackActual[trackActual.length - 1][2];
-    const rec = { id: L0, inicio: L0, fin: L1, puntos: trackActual, dist: distTrack(trackActual), vmax: Math.max(...trackActual.map(p => p[3] || 0)) };
-    const lista = leer('recorridos', []); lista.unshift(rec); guardar('recorridos', lista);
-  }
-  trackActual = []; guardar('trackActual', []); pintarRec(); listarRecorridos();
+  const pts = trackActual; trackActual = []; guardar('trackActual', []); pintarRec();
+  if (pts.length < 2) { listarRecorridos(); return; }
+  const L0 = pts[0][2], L1 = pts[pts.length - 1][2];
+  const rec = { id: L0, inicio: L0, fin: L1, puntos: pts, dist: distTrack(pts), vmax: Math.max(...pts.map(p => p[3] || 0)) };
+  guardar('recPendiente', rec); preguntarRec(rec);
+}
+function preguntarRec(rec) {
+  const dlg = $('#dlgRec'), nom = $('#dlgRecNombre'), borrar = $('#dlgRecBorrar');
+  $('#dlgRecDet').textContent = `${num(rec.dist / 1852, 2)} MN · ${fmtDur(rec.fin - rec.inicio)} · ${fmtFecha(rec.inicio)}`;
+  nom.value = ''; nom.placeholder = 'Nombre (opcional)';
+  borrar.textContent = 'Eliminar'; borrar.dataset.seguro = '';
+  dlg.hidden = false;
+  const cerrar = () => { dlg.hidden = true; guardar('recPendiente', null); listarRecorridos(); };
+  $('#dlgRecGuardar').onclick = () => { if (nom.value.trim()) rec.n = nom.value.trim(); const l = leer('recorridos', []); l.unshift(rec); guardar('recorridos', l); cerrar(); };
+  borrar.onclick = () => { if (borrar.dataset.seguro !== '1') { borrar.dataset.seguro = '1'; borrar.textContent = 'Tocá de nuevo para eliminar'; return; } cerrar(); };
 }
 btnRec.onclick = async () => {
   if (grabando) { terminarGrabacion(); return; }
@@ -882,32 +906,92 @@ const fmtFecha = t => new Date(t).toLocaleString('es-AR', { weekday: 'short', da
 const fmtDur = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
 function gpx(r) {
   const pts = r.puntos.map(p => `<trkpt lat="${p[0]}" lon="${p[1]}"><time>${new Date(p[2]).toISOString()}</time></trkpt>`).join('');
-  return `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Costanero" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Recorrido ${fmtFecha(r.inicio)}</name><trkseg>${pts}</trkseg></trk></gpx>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Costanero" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>${esc(r.n || 'Recorrido ' + fmtFecha(r.inicio))}</name><trkseg>${pts}</trkseg></trk></gpx>`;
+}
+const vistos = new Map(); // id → línea en el mapa
+function verRecorrido(r, ver) {
+  if (!ver) { vistos.get(r.id)?.remove(); vistos.delete(r.id); return; }
+  const ln = L.polyline(r.puntos.map(p => [p[0], p[1]]), { pane: 'ruta', color: '#00d5ff', weight: 4, dashArray: '2 6', opacity: 0.95 })
+    .bindPopup(`<h3>${esc(r.n || 'Recorrido')}</h3><p>${esc(fmtFecha(r.inicio))} · ${num(r.dist / 1852, 2)} MN · ${fmtDur(r.fin - r.inicio)}</p>`).addTo(capaTrack);
+  vistos.set(r.id, ln);
+  activarSeguir(false); mapa.fitBounds(ln.getBounds(), { padding: [40, 40] }); if (innerWidth < 700) abrirPanel(false);
+}
+// Renombrar en el lugar: el título pasa a ser un campo de texto
+function renombrar(h3, actual, alGuardar) {
+  const inp = document.createElement('input'); inp.type = 'text'; inp.maxLength = 40; inp.value = actual; inp.className = 'renombrar';
+  h3.replaceWith(inp); inp.focus(); inp.select();
+  const fin = () => { const v = inp.value.trim(); alGuardar(v || actual); };
+  inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { inp.value = actual; inp.blur(); } };
+  inp.onblur = fin;
 }
 function listarRecorridos() {
   const caja = $('#listaRecorridos'); if (!caja) return;
   const lista = leer('recorridos', []);
   caja.innerHTML = (grabando ? `<div class="reco"><h3>Grabando ahora</h3><p>${trackActual.length} puntos · ${num(distTrack(trackActual) / 1852, 2)} MN</p></div>` : '')
-    + (lista.length ? lista.map((r, i) => `<div class="reco"><h3>${esc(fmtFecha(r.inicio))}</h3><p>${num(r.dist / 1852, 2)} MN · ${fmtDur(r.fin - r.inicio)} · vel. media ${num(r.dist / 1852 / Math.max((r.fin - r.inicio) / 3600000, 0.01), 1)} kn${r.vmax ? ` · máx ${num(r.vmax, 1)} kn` : ''}</p>
-      <div class="btns"><button data-ver="${i}">Ver en el mapa</button><button data-gpx="${i}">Descargar GPX</button><button class="peligro" data-borrar="${i}">Borrar</button></div></div>`).join('') : '<p>Sin recorridos. Grabá con ● en el mapa.</p>');
-  caja.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => {
-    const r = lista[+b.dataset.ver]; if (recorridoVisto) recorridoVisto.remove();
-    recorridoVisto = L.polyline(r.puntos.map(p => [p[0], p[1]]), { pane: 'ruta', color: '#00d5ff', weight: 4, dashArray: '2 6', opacity: 0.95 }).bindPopup(`<h3>Recorrido ${esc(fmtFecha(r.inicio))}</h3><p>${num(r.dist / 1852, 2)} MN · ${fmtDur(r.fin - r.inicio)}</p>`).addTo(capaTrack);
-    activarSeguir(false); mapa.fitBounds(recorridoVisto.getBounds(), { padding: [40, 40] }); if (innerWidth < 700) abrirPanel(false);
+    + (lista.length ? lista.map((r, i) => `<div class="reco"><h3>${esc(r.n || fmtFecha(r.inicio))}</h3><p>${r.n ? esc(fmtFecha(r.inicio)) + ' · ' : ''}${num(r.dist / 1852, 2)} MN · ${fmtDur(r.fin - r.inicio)} · media ${num(r.dist / 1852 / Math.max((r.fin - r.inicio) / 3600000, 0.01), 1)} kn${r.vmax ? ` · máx ${num(r.vmax, 1)} kn` : ''}</p>
+      <div class="btns"><button data-ver="${i}" class="${vistos.has(r.id) ? 'on' : ''}">${vistos.has(r.id) ? 'Dejar de ver' : 'Ver en el mapa'}</button><button data-ren="${i}">Renombrar</button><button data-gpx="${i}">GPX</button><button class="peligro" data-borrar="${i}">Borrar</button></div></div>`).join('') : '<p class="nota">Sin recorridos. Grabá con ● en el mapa.</p>');
+  caja.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => { const r = lista[+b.dataset.ver]; verRecorrido(r, !vistos.has(r.id)); listarRecorridos(); });
+  caja.querySelectorAll('[data-ren]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.ren, r = lista[i];
+    renombrar(b.closest('.reco').querySelector('h3'), r.n || fmtFecha(r.inicio), v => { const l = leer('recorridos', []); if (l[i]) { l[i].n = v; guardar('recorridos', l); } listarRecorridos(); });
   });
   caja.querySelectorAll('[data-gpx]').forEach(b => b.onclick = () => {
     const r = lista[+b.dataset.gpx], a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([gpx(r)], { type: 'application/gpx+xml' }));
-    a.download = `recorrido-${new Date(r.inicio).toISOString().slice(0, 16).replace(/[:T]/g, '-')}.gpx`; document.body.appendChild(a); a.click(); a.remove();
+    a.download = `${(r.n || 'recorrido').replace(/[^\w\-]+/g, '_')}-${new Date(r.inicio).toISOString().slice(0, 10)}.gpx`; document.body.appendChild(a); a.click(); a.remove();
   });
   caja.querySelectorAll('[data-borrar]').forEach(b => b.onclick = () => {
     if (b.dataset.seguro !== '1') { b.dataset.seguro = '1'; b.textContent = 'Tocá de nuevo para borrar'; return; }
-    const l = leer('recorridos', []); l.splice(+b.dataset.borrar, 1); guardar('recorridos', l); if (recorridoVisto) { recorridoVisto.remove(); recorridoVisto = null; } listarRecorridos();
+    const l = leer('recorridos', []), r = l[+b.dataset.borrar]; if (r) verRecorrido(r, false); l.splice(+b.dataset.borrar, 1); guardar('recorridos', l); listarRecorridos();
   });
 }
 setInterval(() => { if (grabando) { guardar('trackActual', trackActual); listarRecorridos(); } }, 15000);
 if (grabando) iniciarGps(false);
 pintarRec(); listarRecorridos();
+{ const p = leer('recPendiente', null); if (p) preguntarRec(p); } // si la app se cerró antes de responder
+
+/* ---------- Waypoints: marcar un punto (posición del barco o mantener apretado en el mapa) ---------- */
+const capaWp = L.layerGroup().addTo(mapa), marcasWp = new Map();
+const iconoWp = n => L.divIcon({ className: 'toque', iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10],
+  html: `<svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 1l8 9-8 9-8-9z" fill="#ffd400" stroke="#0b2a3c" stroke-width="2"/></svg><div class="et-boya et-wp">${esc(n)}</div>` });
+function pintarWp() {
+  for (const m of marcasWp.values()) m.remove(); marcasWp.clear();
+  for (const w of leer('waypoints', [])) if (w.ver !== false) {
+    const m = ficha(L.marker([w.lat, w.lon], { icon: iconoWp(w.n), title: w.n, zIndexOffset: 500 }), w.lat, w.lon, w.n, `${fmtLat(w.lat)} · ${fmtLon(w.lon)}`).addTo(capaWp);
+    marcasWp.set(w.id, m);
+  }
+  listarWp();
+}
+function nuevoWp(p) {
+  const l = leer('waypoints', []), n = l.reduce((a, w) => Math.max(a, +(w.n.match(/^WP (\d+)$/) || [0, 0])[1]), 0) + 1;
+  l.push({ id: Date.now(), n: `WP ${n}`, lat: +p.lat.toFixed(6), lon: +p.lng.toFixed(6), t: Date.now(), ver: true });
+  guardar('waypoints', l); pintarWp();
+}
+function listarWp() {
+  const caja = $('#listaWp'); if (!caja) return;
+  const l = leer('waypoints', []);
+  caja.innerHTML = l.length ? l.map((w, i) => `<div class="reco"><h3>◆ ${esc(w.n)}</h3><p>${esc(fmtLat(w.lat))} · ${esc(fmtLon(w.lon))}</p>
+    <div class="btns"><button data-wver="${i}" class="${w.ver !== false ? 'on' : ''}">${w.ver !== false ? 'Ocultar' : 'Mostrar'}</button><button data-wir="${i}">Ir hasta aquí</button><button data-wren="${i}">Renombrar</button><button class="peligro" data-wbor="${i}">Borrar</button></div></div>`).join('')
+    : '<p class="nota">Sin waypoints. Tocá tu barco → «◆ Waypoint aquí», o mantené apretado un punto del mapa.</p>';
+  const cambiar = (i, f) => { const l2 = leer('waypoints', []); if (l2[i]) { f(l2[i]); guardar('waypoints', l2); } pintarWp(); };
+  caja.querySelectorAll('[data-wver]').forEach(b => b.onclick = () => cambiar(+b.dataset.wver, w => { w.ver = w.ver === false; }));
+  caja.querySelectorAll('[data-wir]').forEach(b => b.onclick = () => { const w = l[+b.dataset.wir]; irA(w.lat, w.lon, w.n); if (innerWidth < 700) abrirPanel(false); mapa.panTo([w.lat, w.lon]); });
+  caja.querySelectorAll('[data-wren]').forEach(b => b.onclick = () => { const i = +b.dataset.wren; renombrar(b.closest('.reco').querySelector('h3'), l[i].n, v => cambiar(i, w => { w.n = v; })); });
+  caja.querySelectorAll('[data-wbor]').forEach(b => b.onclick = () => {
+    if (b.dataset.seguro !== '1') { b.dataset.seguro = '1'; b.textContent = 'Tocá de nuevo para borrar'; return; }
+    const l2 = leer('waypoints', []); l2.splice(+b.dataset.wbor, 1); guardar('waypoints', l2); pintarWp();
+  });
+}
+$('#marcarWp').onclick = () => { if (posGps) { nuevoWp(posGps); marcaBarco && marcaBarco.closePopup(); } };
+// mantener apretado (o clic derecho) en el mapa: ofrecer guardar waypoint ahí
+mapa.on('contextmenu', e => {
+  const div = document.createElement('div');
+  div.innerHTML = `<p class="nota">${esc(fmtLat(e.latlng.lat))}<br>${esc(fmtLon(e.latlng.lng))}</p><button class="btn-ir">◆ Guardar waypoint</button>`;
+  L.DomEvent.disableClickPropagation(div);
+  const pop = L.popup({ closeButton: false }).setLatLng(e.latlng).setContent(div).openOn(mapa);
+  div.querySelector('.btn-ir').onclick = ev => { L.DomEvent.stop(ev); nuevoWp(e.latlng); setTimeout(() => mapa.closePopup(pop), 0); };
+});
+pintarWp();
 
 // Restaurar la última pestaña (al final: todo lo que usa ya está definido)
 { const t = document.querySelector(`.tab[data-t="${leer('tab', 'avisos')}"]`) || document.querySelector('.tab[data-t="avisos"]'); if (t) t.click(); }
@@ -988,9 +1072,11 @@ $('#barraMarea').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.
 $('#cerrarMarea').onclick = () => { $('#hojaMarea').hidden = true; };
 pintarBarraMarea();
 /* Hojas de viento y marea: se cierran arrastrando hacia abajo con un dedo */
-function arrastrable(hoja) {
+function arrastrable(hoja, cerrar, habilitado) {
   let y0 = null, x0 = 0, dy = 0, activo = false;
-  hoja.addEventListener('touchstart', e => { if (hoja.scrollTop > 0 || e.touches.length > 1) { y0 = null; return; } y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; activo = false; }, { passive: true });
+  hoja.addEventListener('touchstart', e => {
+    const sc = e.target.closest && e.target.closest('.vista, .hoja-viento, .hoja-marea');
+    if ((habilitado && !habilitado()) || (sc && sc.scrollTop > 0) || e.touches.length > 1 || (e.target.closest && e.target.closest('input, select, .scroll'))) { y0 = null; return; } y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; activo = false; }, { passive: true });
   hoja.addEventListener('touchmove', e => {
     if (y0 == null) return;
     const d = e.touches[0].clientY - y0, dx = Math.abs(e.touches[0].clientX - x0);
@@ -1000,11 +1086,12 @@ function arrastrable(hoja) {
   hoja.addEventListener('touchend', () => {
     if (!activo) { y0 = null; return; }
     hoja.style.transition = 'transform .18s'; 
-    if (dy > 70) { hoja.style.transform = 'translateY(100%)'; setTimeout(() => { hoja.hidden = true; hoja.style.transform = ''; }, 180); }
-    else hoja.style.transform = '';
+    if (dy > 70) { hoja.style.transform = 'translateY(105%)'; setTimeout(() => { if (cerrar) cerrar(); else hoja.hidden = true; hoja.style.transform = ''; hoja.style.transition = ''; }, 180); }
+    else { hoja.style.transform = ''; setTimeout(() => { hoja.style.transition = ''; }, 200); }
     y0 = null; activo = false;
   });
 }
 arrastrable($('#hojaMarea')); arrastrable($('#hojaViento'));
+arrastrable($('#panel'), () => abrirPanel(false), () => innerWidth <= 700);
 
 }

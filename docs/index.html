@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="estilo.css?v=76">
+<link rel="stylesheet" href="estilo.css?v=78">
 </head>
 <body>
 <div id="mapa" aria-label="Carta del Río de la Plata interior y el Delta"></div>
@@ -35,6 +35,7 @@
     <select id="minRumbo" aria-label="Largo de la línea de rumbo"><option value="5">5 min</option><option value="10">10 min</option><option value="30">30 min</option></select>
   </label>
   <button class="quitar-dest" id="quitarDest" hidden>✕ Quitar destino</button>
+  <button class="marcar-wp" id="marcarWp">◆ Waypoint aquí</button>
 </div>
 
 <div class="botones">
@@ -46,6 +47,13 @@
 </div>
 
 <div class="alertas" id="alertas" role="alert" hidden></div>
+
+<div class="dialogo" id="dlgRec" role="dialog" aria-modal="true" aria-labelledby="dlgRecT" hidden>
+  <h2 id="dlgRecT">¿Guardar el recorrido?</h2>
+  <p id="dlgRecDet"></p>
+  <input id="dlgRecNombre" type="text" maxlength="40" aria-label="Nombre del recorrido">
+  <div class="btns"><button class="ok" id="dlgRecGuardar">Guardar</button><button class="peligro" id="dlgRecBorrar">Eliminar</button></div>
+</div>
 
 <aside class="hoja-viento" id="hojaViento" aria-label="Viento 3 días" hidden>
   <div class="agarre" aria-hidden="true"></div>
@@ -90,6 +98,7 @@
 
 <!-- Panel lateral / hoja inferior -->
 <aside class="panel" id="panel" aria-label="Avisos e información">
+  <div class="agarre agarre-panel" aria-hidden="true"></div>
   <header class="p-cab">
     <div>
       <h1>MS_Costanero</h1>
@@ -120,6 +129,8 @@
 
   <section class="vista" id="v-recorridos">
     <div id="listaRecorridos"></div>
+    <h2 class="sec">Waypoints</h2>
+    <div id="listaWp"></div>
   </section>
 
   <section class="vista" id="v-info">
@@ -145,6 +156,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
-<script src="app.js?v=76"></script>
+<script src="app.js?v=78"></script>
 </body>
 </html>
