@@ -17,6 +17,9 @@ function distM(a, b) { const dLa = rad(b.lat - a.lat), dLo = rad(b.lng - a.lng);
 function rumbo(a, b) { const y = Math.sin(rad(b.lng-a.lng))*Math.cos(rad(b.lat)); const x = Math.cos(rad(a.lat))*Math.sin(rad(b.lat)) - Math.sin(rad(a.lat))*Math.cos(rad(b.lat))*Math.cos(rad(b.lng-a.lng)); return (deg(Math.atan2(y, x)) + 360) % 360; }
 const fmtDist = m => m < 1852 * 0.5 ? `${Math.round(m)} m` : `${(m / 1852).toFixed(2).replace('.', ',')} MN`;
 const fmtRumbo = r => `${String(Math.round(r) % 360).padStart(3, '0')}°`;
+// Pellizco fuera del mapa (rosa del viento, marea, botones, hojas): no agrandar la página. iOS ignora user-scalable=no.
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', e => { if (e.touches.length > 1 && !e.target.closest('.leaflet-container')) e.preventDefault(); }, { passive: false });
 const num = (v, d = 2) => v == null || isNaN(v) ? '—' : Number(v).toFixed(d).replace('.', ',');
 
 /* ---------- Mapa ---------- */
