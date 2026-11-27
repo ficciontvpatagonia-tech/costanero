@@ -994,7 +994,7 @@ const efectoViento = e => !e ? '' : e.dif >= 0.3 ? ` · sudestada +${num(e.dif)}
 const FONDO_REF = {
   SI: { m: 1.20, lugar: 'Costanero' },     // determinante UNEN del Canal Costanero
   PNOR: { m: 6.3, lugar: 'Pilote Norden' }, // sondaje SHN H-118 junto al pilote
-  BSAS: { m: 3.0, lugar: 'Dársena F' },     // canal Dársena F Km 4,7, junto al mareógrafo (carta, leído por Marto)
+  BSAS: { m: 1.5, lugar: 'Club de Pescadores' }, // mareógrafo SHN en la punta del muelle; Marto lee 1,5–2 → el menor (H-118 alrededor: 0,7 / 0,8 / 1,8)
 };
 function aguaTotal(s, u) {
   const f = FONDO_REF[s.id]; if (!f || !u) return '';
