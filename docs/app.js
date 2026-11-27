@@ -990,6 +990,15 @@ function tendencia(est, puertoPB) {
   return `<span class="tend ${sube ? 'sube' : 'baja'}">${sube ? '▲ crece' : '▼ baja'}${hasta ? ' hasta las ' + hora(hasta) : ''}</span>`;
 }
 const efectoViento = e => !e ? '' : e.dif >= 0.3 ? ` · sudestada +${num(e.dif)} m` : e.dif <= -0.3 ? ` · bajante por viento ${num(e.dif)} m` : '';
+// Agua total = fondo de referencia de la zona (al plano de reducción, el cero de la carta) + altura del río ahora
+const FONDO_REF = {
+  SI: { m: 1.20, lugar: 'Costanero' },     // determinante UNEN del Canal Costanero
+  PNOR: { m: 6.3, lugar: 'Pilote Norden' }, // sondaje SHN H-118 junto al pilote
+};
+function aguaTotal(s, u) {
+  const f = FONDO_REF[s.id]; if (!f || !u) return '';
+  return `<div class="total"><div class="t-lbl">Agua total</div><div class="alt">${num(f.m + u[1])} m</div><div class="t-cta">${f.lugar} ${num(f.m)} + ${num(u[1])}</div></div>`;
+}
 function tarjeta(s) {
   const m = sit.mareografos || {}, pref = sit.prefectura || {};
   const cod = s.id === 'SI' ? 'SFER' : s.id, est = m[cod], u = est && ultimo(est.observada);
@@ -997,7 +1006,7 @@ function tarjeta(s) {
   const p = s.id === 'SI' ? pref['San Isidro'] : s.id === 'BSAS' ? pref['Buenos Aires'] : null;
   const chips = p ? (p.altura >= p.evacuacion ? '<span class="chip evac">Evacuación</span>' : p.altura >= p.alerta ? '<span class="chip alerta">Alerta</span>' : '') : '';
   const det = (u ? (s.id === 'SI' ? 'San Fernando ' : '') + hora(u[0]) : 'sin lectura') + (est && est.notaUY ? ' · ' + est.notaUY : '') + efectoViento(est && estimacion(est));
-  return `<div class="est"><h3>${esc(s.titulo)} ${chips}</h3><div><div class="alt">${u ? num(u[1]) + ' m' : '—'}</div>${tendencia(est, pb)}</div><div class="det">${det}</div></div>`;
+  return `<div class="est"><h3>${esc(s.titulo)} ${chips}</h3><div><div class="alt">${u ? num(u[1]) + ' m' : '—'}</div>${tendencia(est, pb)}</div>${aguaTotal(s, u)}<div class="det">${det}</div></div>`;
 }
 // En la hoja de mareas solo la zona elegida (por defecto San Isidro, con el mareógrafo de San Fernando)
 function pintarEstacion() {
