@@ -162,6 +162,12 @@ fetch('datos/rios.geojson').then(r => r.json()).then(gj => {
       icon: L.divIcon({ className: '', html: `<div class="et-rio" style="transform:translate(-50%,-50%) rotate(${ang.toFixed(1)}deg)">${esc(corto)}</div>`, iconSize: [0, 0] }) }).addTo(etRios);
   }
 });
+// Nombres del Delta (OSM, con la grafía de la H-118 donde difiere): ríos desde zoom 12, arroyos y canales desde 14
+const etArroyos = grupoVisible();
+fetch('datos/nombres_delta.json').then(r => r.json()).then(l => {
+  for (const [n, la, lo, ang, g] of l) L.marker([la, lo], { pane: 'etiquetas', interactive: false,
+    icon: L.divIcon({ className: '', html: `<div class="et-rio${g === 2 ? ' chico' : ''}" style="transform:translate(-50%,-50%) rotate(${ang}deg)">${esc(n)}</div>`, iconSize: [0, 0] }) }).addTo(g === 1 ? etRios : etArroyos);
+}).catch(() => {});
 const LUGARES = [ // posiciones de referencia para nombres (no son puntos de navegación)
   ['San Isidro', -34.4715, -58.5135], ['Olivos', -34.5085, -58.4865], ['Núñez', -34.5440, -58.4610], ['Tigre', -34.4230, -58.5800],
   ['San Fernando', -34.4420, -58.5560], ['Buenos Aires', -34.6040, -58.3900], ['Isla Martín García', -34.1760, -58.2560], ['Colonia del Sacramento', -34.4640, -57.8300], ['Conchillas', -34.1643, -58.0333], ['Riachuelo', -34.4380, -57.7240],
@@ -173,6 +179,7 @@ const etRdlp = L.marker([-34.42, -58.30], { pane: 'etiquetas', interactive: fals
 function etiquetasSegunZoom() {
   const z = mapa.getZoom();
   z >= 12 ? etRios.addTo(mapa) : etRios.remove();
+  z >= 14 ? etArroyos.addTo(mapa) : etArroyos.remove();
   z >= 11 ? etLugares.addTo(mapa) : etLugares.remove();
   z <= 12 ? etRdlp.addTo(mapa) : etRdlp.remove();
   z >= 15 ? etBoyas.addTo(mapa) : etBoyas.remove();
