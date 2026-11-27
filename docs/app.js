@@ -80,6 +80,7 @@ function agregarCarta(gj) {
   cartasCargadas.push(gj); if (paleta === 'minima') rehacerRelleno();
 }
 fetch('datos/carta.geojson').then(r => r.json()).then(agregarCarta).catch(() => {});
+fetch('datos/carta_h116.geojson').then(r => r.json()).then(agregarCarta).catch(() => {}); // tierra fuera de las cartas de detalle (SHN H-116)
 // repinta todo lo que depende de los colores (cambio día/noche del teléfono o de juego de colores en Info)
 function aplicarColores() {
   const r = document.documentElement.style, min = paleta === 'minima';
@@ -406,10 +407,10 @@ function pintarTile(cv, c) {
       }
       if (z === null || (masc && masc[(j * TILE + i) * 4 + 3] > 127)) continue;
       if (canT.length) { const lon = lonDe(x0 + i + 0.5), lat = latDe(y0 + j + 0.5);
-        for (const c of canT) if (z < c.min && lon >= c.w && lon <= c.e && lat >= c.s && lat <= c.n && dentroAnillo(lon, lat, c.r)) z = c.min; }
-      if (tocaCorredor && z < DETERMINANTE) {
+        for (const c of canT) if (z < c.min + DIF_PRS && lon >= c.w && lon <= c.e && lat >= c.s && lat <= c.n && dentroAnillo(lon, lat, c.r)) z = c.min + DIF_PRS; }
+      if (tocaCorredor && z < DETERMINANTE + DIF_PRS) { // UNEN ya está al cero nuevo; la grilla (H-118) al viejo
         const lat = latDe(y0 + j + 0.5), lon = lonDe(x0 + i + 0.5);
-        if (lat > -34.475 && lat < -34.445 && lon > -58.505 && lon < -58.465 && enCorredor(lon, lat)) z = DETERMINANTE;
+        if (lat > -34.475 && lat < -34.445 && lon > -58.505 && lon < -58.465 && enCorredor(lon, lat)) z = DETERMINANTE + DIF_PRS;
       }
       const o = (j * TILE + i) * 4, dA = z + hh;
       let r = 0, gg = 0, bb = 0, al = 0;
@@ -825,6 +826,7 @@ const DETERMINANTE = 1.20; // m, Canal Costanero zona menos profunda Km 19,3–2
    Las cartas que usamos (H-118 2016, LAT) tienen el nivel medio a 0,79 m en San Fernando, Buenos Aires y La Plata (0,64 en Martín García):
    el cero nuevo está 0,12 m más abajo → con estas cartas hay que restar 0,12 m a la altura del SHN (0,27 en Martín García). */
 const DIF_PRS = 0.12;
+// Excepción: los valores UNEN (Costanero 1,20, canales del Luján y Rivademar) ya están al cero nuevo (A. Kalfayan, 27/11/2026) → sin corrección.
 let sit = null, vientoAhora = {};
 const ultimo = a => a && a.length ? a[a.length - 1] : null;
 const hora = iso => new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -856,13 +858,13 @@ function pintarSemaforo() {
   const sf = sit && sit.mareografos && sit.mareografos.SFER;
   const a = alturaAhora(sf);
   if (!a) { luz.className = 'sem-luz'; luz.textContent = 'Sin dato de altura'; det.textContent = ''; return; }
-  const c = parseFloat(calado.value) || 0, agua = DETERMINANTE - DIF_PRS + a.h, margen = agua - c;
+  const c = parseFloat(calado.value) || 0, agua = DETERMINANTE + a.h, margen = agua - c;
   luz.className = 'sem-luz ' + (margen >= 0.5 ? 'verde' : margen >= 0.2 ? 'ambar' : 'rojo');
   luz.textContent = 'Costanero · ' + (margen >= 0.5 ? 'Pasa' : margen >= 0.2 ? 'Justo' : 'No pasa');
   const est = estimacion(sf);
   let prox = '';
   if (est && est.futuro.length) {
-    const ok = est.futuro.find(x => DETERMINANTE - DIF_PRS + x[1] - c >= 0.5), malo = est.futuro.find(x => DETERMINANTE - DIF_PRS + x[1] - c < 0.2);
+    const ok = est.futuro.find(x => DETERMINANTE + x[1] - c >= 0.5), malo = est.futuro.find(x => DETERMINANTE + x[1] - c < 0.2);
     if (margen < 0.5 && ok) prox = ` · da desde las ${hora(ok[0])}`;
     else if (margen >= 0.2 && malo) prox = ` · deja de dar ${hora(malo[0])}`;
   }
@@ -930,7 +932,7 @@ function curva(z, est, conLim) {
     const tU = u ? +new Date(u[0]) : ahora;
     const viento = mvd || !u ? [] : [...(uy ? (est.observada || []).filter(x => +new Date(x[0]) >= t0) : [u]),
       ...pred.filter(x => { const t = +new Date(x[0]); return t > tU && t <= tU + EST_H * 3600e3; }).map(x => [x[0], +(x[1] + dif).toFixed(2)])];
-    const c = parseFloat(calado.value) || 0, lim = c - DETERMINANTE + DIF_PRS + 0.2; // altura mínima para 0,2 m bajo la quilla en el Costanero
+    const c = parseFloat(calado.value) || 0, lim = c - DETERMINANTE + 0.2; // altura mínima para 0,2 m bajo la quilla en el Costanero
     const todos = [...pred, ...real, ...viento]; if (!todos.length) { caja.innerHTML = '<p class="nota">Sin datos.</p>'; return; }
     const vals = [...todos.map(x => x[1]), ...(conLim ? [lim] : [])], lo = Math.floor((Math.min(...vals) - 0.1) * 2) / 2, hi = Math.ceil((Math.max(...vals) + 0.1) * 2) / 2;
     const H = 200, TOP = 16, BOT = H - 34, W = Math.round((t1 - t0) / 3600e3 * PXH) + 16;
@@ -999,14 +1001,14 @@ function tendencia(est, puertoPB) {
 const efectoViento = e => !e ? '' : e.dif >= 0.3 ? ` · sudestada +${num(e.dif)} m` : e.dif <= -0.3 ? ` · bajante por viento ${num(e.dif)} m` : '';
 // Agua total = fondo de referencia de la zona (al plano de reducción, el cero de la carta) + altura del río ahora
 const FONDO_REF = {
-  SI: { m: 1.20, lugar: 'Costanero', dif: DIF_PRS },     // determinante UNEN del Canal Costanero
+  SI: { m: 1.20, lugar: 'Costanero', dif: 0 },           // determinante UNEN del Canal Costanero: UNEN ya lo refirió al cero nuevo (Kalfayan, 27/11/2026: corregido en enero 2026)
   PNOR: { m: 6.3, lugar: 'Pilote Norden', dif: DIF_PRS }, // sondaje SHN junto al pilote
   MAGA: { m: 1.0, lugar: 'Muelle', dif: 0.27 },           // H-118, cuarterón "Isla Martín García · Muelle" 1:1500: mareógrafo en la punta, 1 m
   BSAS: { m: 1.5, lugar: 'Club de Pescadores', dif: DIF_PRS }, // mareógrafo SHN en la punta del muelle; Marto lee 1,5–2 → el menor (H-118 alrededor: 0,7 / 0,8 / 1,8)
 };
 function aguaTotal(s, u) {
   const f = FONDO_REF[s.id]; if (!f || !u) return '';
-  return `<div class="total"><div class="t-lbl">Agua total</div><div class="alt">${num(f.m + u[1] - f.dif)} m</div><div class="t-cta">${f.lugar} ${num(f.m)} + ${num(u[1])} − ${num(f.dif)}</div></div>`;
+  return `<div class="total"><div class="t-lbl">Agua total</div><div class="alt">${num(f.m + u[1] - f.dif)} m</div><div class="t-cta">${f.lugar} ${num(f.m)} + ${num(u[1])}${f.dif ? ' − ' + num(f.dif) : ''}</div></div>`;
 }
 function tarjeta(s) {
   const m = sit.mareografos || {}, pref = sit.prefectura || {};
@@ -1201,7 +1203,7 @@ function alertasDelDia() {
       const [hh, mi] = x.hora.split(':'); const t = `${hoy}T${hh}:${mi}:00`;
       if (new Date(t) > new Date(ahora - 3600e3)) pts.push([t, x.altura, 'bajamar SHN']);
     }
-    const margen = h => DETERMINANTE - DIF_PRS + h - cal;
+    const margen = h => DETERMINANTE + h - cal;
     const malos = pts.filter(p => margen(p[1]) < 0.2), justos = pts.filter(p => margen(p[1]) >= 0.2 && margen(p[1]) < 0.4);
     pts.sort((x, y) => x[0] < y[0] ? -1 : 1);
     // ventanas del día en que SÍ pasás (≥ 0,20 m bajo la quilla); aviso corto solo si hay horas en que no da
@@ -1466,12 +1468,12 @@ function pintarCurva() {
 function pintarBarraMarea() {
   const z = zonaSel.value, b = $('#barraMarea'), sf = sit && sit.mareografos && sit.mareografos[z], a = alturaAhora(sf), u = a && [a.t, a.h];
   if (!u) { $('#mNum').textContent = '—'; $('#mFl').textContent = $('#mHora').textContent = ''; return; }
-  const c = parseFloat(calado.value) || 0, margen = DETERMINANTE - DIF_PRS + u[1] - c;
+  const c = parseFloat(calado.value) || 0, margen = DETERMINANTE + u[1] - c;
   const nivel = u[1] <= UMBRAL_BAJANTE || (z === 'SFER' && margen < 0.2) ? 'bajo' : u[1] >= MAREA_ALTA ? 'alto' : 'medio';
   b.dataset.nivel = nivel;
   const pct = v => Math.max(0, Math.min(100, (v - MAREA_MIN) / (MAREA_MAX - MAREA_MIN) * 100));
   $('#mNivel').style.height = pct(u[1]) + '%';
-  $('#mLim').style.bottom = pct(c - DETERMINANTE + DIF_PRS + 0.2) + '%'; $('#mLim').hidden = z !== 'SFER';
+  $('#mLim').style.bottom = pct(c - DETERMINANTE + 0.2) + '%'; $('#mLim').hidden = z !== 'SFER';
   $('#mNum').textContent = num(u[1], 1);
   const t = tendencia(sf, PB_ZONA[z]), m = t.match(/(▲|▼)[^<]*?(\d\d:\d\d)?</);
   $('#mFl').textContent = m ? m[1] : ''; $('#mFl').className = 'm-fl ' + (m && m[1] === '▲' ? 'sube' : 'baja');
