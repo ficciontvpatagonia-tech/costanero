@@ -81,6 +81,19 @@ function agregarCarta(gj) {
 }
 fetch('datos/carta.geojson').then(r => r.json()).then(agregarCarta).catch(() => {});
 fetch('datos/carta_h116.geojson').then(r => r.json()).then(agregarCarta).catch(() => {}); // tierra fuera de las cartas de detalle (SHN H-116)
+// Ríos y arroyos del Delta (OSM), solo donde las cartas tenían tierra; se cargan al acercarse al Delta
+nuevoPanel('delta', 262);
+const lienzoDelta = L.canvas({ pane: 'delta', padding: 0.5 });
+const estiloDelta = f => paleta === 'minima'
+  ? { stroke: true, color: col('borde'), weight: 1, opacity: 0.8, fill: f.properties.z === 'agua', fillColor: '#000', fillOpacity: 1 }
+  : f.properties.z === 'agua' ? { stroke: false, fillColor: col('agua'), fillOpacity: 1 } : { color: col('agua'), weight: 2, opacity: 1 };
+let capaDelta = null, deltaPedido = false;
+function cargarDelta() {
+  if (deltaPedido || mapa.getZoom() < 10 || !mapa.getBounds().intersects(L.latLngBounds([-34.47, -58.95], [-33.85, -58.33]))) return;
+  deltaPedido = true;
+  fetch('datos/delta.geojson').then(r => r.json()).then(gj => { capaDelta = L.geoJSON(gj, { pane: 'delta', renderer: lienzoDelta, interactive: false, style: estiloDelta }).addTo(mapa); })
+    .catch(() => { deltaPedido = false; });
+}
 // repinta todo lo que depende de los colores (cambio día/noche del teléfono o de juego de colores en Info)
 function aplicarColores() {
   const r = document.documentElement.style, min = paleta === 'minima';
@@ -92,7 +105,7 @@ function aplicarColores() {
   if (paleta === 'clasica') ['--tierra', '--seca', '--agua', '--honda', '--grad'].forEach(v => r.removeProperty(v));
   else { r.setProperty('--tierra', col('tierra')); r.setProperty('--seca', col('seca')); r.setProperty('--agua', col('agua')); r.setProperty('--honda', col('profunda')); }
   const g = col('grad'); r.setProperty('--grad', `linear-gradient(90deg,rgb(${g[0]}),rgb(${g[1]}))`);
-  capasCarta.forEach(c => c.setStyle(estiloZona));
+  capasCarta.forEach(c => c.setStyle(estiloZona)); if (capaDelta) capaDelta.setStyle(estiloDelta);
   if (typeof dibujarNoPasa === 'function') { dibujarNoPasa(); capaSond.redraw(); }
   document.getElementById('mapa').style.background = col('agua'); dibujarGrilla();
 }
@@ -505,6 +518,7 @@ function cargarZonas() {
   }
 }
 mapa.on("moveend", cargarZonas); cargarZonas();
+mapa.on('moveend', cargarDelta); cargarDelta();
 
 
 /* ---------- Veriles oficiales de los canales troncales (Emilio Mitre, Paraná de las Palmas…) ---------- */
