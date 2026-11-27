@@ -35,6 +35,6 @@ for n, d in por.items():
             ang = math.degrees(math.atan2(-(merc(b.y) - merc(a.y)), math.radians(b.x - a.x)))
             if ang > 90: ang -= 180
             if ang < -90: ang += 180
-            out.append([CARTA.get(n, n), round(p.y, 5), round(p.x, 5), round(ang, 1), 1 if d['rio'] else 2])
+            out.append([CARTA.get(n, n), round(p.y, 5), round(p.x, 5), round(ang, 1), 1 if CARTA.get(n, n).startswith(('Río', 'Paraná')) else 2])
 json.dump(out, open(R / 'docs/datos/nombres_delta.json', 'w'), ensure_ascii=False, separators=(',', ':'))
 print(len(out), 'etiquetas de', len(por), 'nombres')

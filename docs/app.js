@@ -167,7 +167,27 @@ const etArroyos = grupoVisible();
 fetch('datos/nombres_delta.json').then(r => r.json()).then(l => {
   for (const [n, la, lo, ang, g] of l) L.marker([la, lo], { pane: 'etiquetas', interactive: false,
     icon: L.divIcon({ className: '', html: `<div class="et-rio${g === 2 ? ' chico' : ''}" style="transform:translate(-50%,-50%) rotate(${ang}deg)">${esc(n)}</div>`, iconSize: [0, 0] }) }).addTo(g === 1 ? etRios : etArroyos);
+  rotulosLuego();
 }).catch(() => {});
+// Rótulos de ríos y canales sin pisarse (pedido de Marto: "al alejarse es una maraña"): canales del puerto, ríos y después arroyos;
+// el que choca con uno ya puesto se oculta. Choque de rectángulos girados (ejes separadores), con el giro del mapa incluido.
+const choca = (a, b) => [[a.c, a.s], [-a.s, a.c], [b.c, b.s], [-b.s, b.c]].every(([ux, uy]) => {
+  const d = Math.abs((b.x - a.x) * ux + (b.y - a.y) * uy);
+  return d <= a.w * Math.abs(a.c * ux + a.s * uy) + a.h * Math.abs(a.c * uy - a.s * ux) + b.w * Math.abs(b.c * ux + b.s * uy) + b.h * Math.abs(b.c * uy - b.s * ux);
+});
+function ordenarRotulos() {
+  const els = [...document.querySelectorAll('.leaflet-etiquetas-pane :is(.et-lugar, .et-boya, .et-zona, .et-rio, .et-canal)')], giro = mapa.getBearing ? mapa.getBearing() : 0;
+  const prio = e => { const k = e.classList; return k.contains('et-lugar') ? 0 : k.contains('et-destacada') || k.contains('et-canal') ? 1 : k.contains('et-zona') ? 2 : k.contains('chico') ? 4 : 3; };
+  els.forEach(e => { e.style.visibility = ''; });
+  const med = els.map(e => {
+    const r = e.getBoundingClientRect(), ang = (parseFloat((e.style.transform.match(/rotate\(([-\d.]+)deg/) || [0, 0])[1]) + giro) * Math.PI / 180;
+    const sw = Math.max(e.scrollWidth, e.offsetWidth), c = Math.cos(ang), s = Math.sin(ang), corr = e.offsetWidth < sw - 1 ? sw / 2 : 0; // texto que desborda una caja angosta
+    return { e, p: prio(e), x: r.left + r.width / 2 + corr * c, y: r.top + r.height / 2 + corr * s, w: sw / 2 + 8, h: e.offsetHeight / 2 + 3, c, s, ok: r.height > 0 };
+  }).filter(m => m.ok).sort((x, y) => x.p - y.p || y.e.textContent.length - x.e.textContent.length);
+  const puestas = [];
+  for (const m of med) { if (puestas.some(p => choca(p, m))) m.e.style.visibility = 'hidden'; else puestas.push(m); }
+}
+let _tRot; const rotulosLuego = () => { clearTimeout(_tRot); _tRot = setTimeout(ordenarRotulos, 80); };
 const LUGARES = [ // posiciones de referencia para nombres (no son puntos de navegación)
   ['San Isidro', -34.4715, -58.5135], ['Olivos', -34.5085, -58.4865], ['Núñez', -34.5440, -58.4610], ['Tigre', -34.4230, -58.5800],
   ['San Fernando', -34.4420, -58.5560], ['Buenos Aires', -34.6040, -58.3900], ['Isla Martín García', -34.1760, -58.2560], ['Colonia del Sacramento', -34.4640, -57.8300], ['Conchillas', -34.1643, -58.0333], ['Riachuelo', -34.4380, -57.7240],
@@ -178,6 +198,7 @@ const etRdlp = L.marker([-34.42, -58.30], { pane: 'etiquetas', interactive: fals
   icon: L.divIcon({ className: '', html: '<div class="et-grande" style="transform:translate(-50%,-50%)">Río de la Plata</div>', iconSize: [0, 0] }) });
 function etiquetasSegunZoom() {
   const z = mapa.getZoom();
+  document.getElementById('mapa').classList.toggle('lejos', z < 13); // de lejos: solo lugares y "Río de la Plata"
   z >= 12 ? etRios.addTo(mapa) : etRios.remove();
   z >= 14 ? etArroyos.addTo(mapa) : etArroyos.remove();
   z >= 11 ? etLugares.addTo(mapa) : etLugares.remove();
@@ -526,6 +547,7 @@ function cargarZonas() {
 }
 mapa.on("moveend", cargarZonas); cargarZonas();
 mapa.on('moveend', cargarDelta); cargarDelta();
+mapa.on('moveend zoomend rotate', rotulosLuego);
 
 
 /* ---------- Veriles oficiales de los canales troncales (Emilio Mitre, Paraná de las Palmas…) ---------- */
