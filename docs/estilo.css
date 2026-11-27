@@ -135,6 +135,9 @@ h2{font:600 18px/1.2 "Barlow Condensed",sans-serif;margin:0 0 4px}
 .est h3{margin:0;font:600 19px/1.15 "Barlow Condensed",sans-serif;grid-column:1/-1}
 .est .alt{font:700 34px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums}
 .est .tend{font-size:15px;font-weight:600}
+.est .total{text-align:right}
+.est .t-lbl{font-size:13px;font-weight:600;color:var(--sub)}
+.est .t-cta{font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums}
 .est .det{grid-column:1/-1;font-size:14px;color:var(--sub);font-variant-numeric:tabular-nums}
 .est .viento{text-align:right;font:600 20px/1.1 "Barlow Condensed",sans-serif;white-space:nowrap}
 .sube{color:var(--verde)}.baja{color:var(--rojo)}
